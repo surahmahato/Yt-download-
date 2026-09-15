@@ -55,5 +55,26 @@ The compiled APK will be located at `app/build/outputs/apk/debug/app-debug.apk`.
 
 ---
 
+## 🌐 Deploy as a Website on Render.com
+
+This project includes a complete web application edition ready to deploy live on **Render (render.com)**.
+
+### Deploy on Render:
+1. **Option A: Deploy as a Static Site (Recommended & Free)**
+   - Sign in to [dashboard.render.com](https://dashboard.render.com/) and click **New +** > **Static Site**.
+   - Connect your GitHub repository.
+   - **Build Command:** (leave empty or `npm run build`)
+   - **Publish Directory:** `public` (or `.`)
+   - Click **Create Static Site**.
+
+2. **Option B: Deploy as a Web Service (Node.js)**
+   - Click **New +** > **Web Service**.
+   - Connect your GitHub repository.
+   - **Build Command:** `npm install`
+   - **Start Command:** `npm start`
+   - Click **Create Web Service**.
+
+---
+
 ## 📄 License
 This project is open-source and available under the [MIT License](LICENSE).

@@ -1,0 +1,24 @@
+{
+  "name": "yt-download-web",
+  "version": "1.0.0",
+  "description": "Fast online video downloader for YT video download, TikTok video download, and Instagram video download.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "echo 'Static web assets ready in public/'",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "yt video download",
+    "TikTok video download",
+    "instagram video download",
+    "video downloader",
+    "reels downloader",
+    "shorts downloader"
+  ],
+  "author": "AI Studio",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
