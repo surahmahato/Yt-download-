@@ -1,0 +1,6 @@
+{
+  "name": "YT Download",
+  "description": "Fast and attractive video downloader saving videos directly to phone gallery with format selection.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
