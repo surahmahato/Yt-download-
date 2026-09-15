@@ -1,6 +1,6 @@
 {
   "name": "YT Download",
-  "description": "Fast and attractive video downloader saving videos directly to phone gallery with format selection.",
+  "description": "Fast and secure downloader for YT video download, TikTok video download, and Instagram video download directly into phone integrated gallery.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -27,6 +27,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- SEO & App Metadata -->
+        <meta-data
+            android:name="keywords"
+            android:value="yt video download, TikTok video download, instagram video download, video downloader, reels downloader, phone gallery saver" />
+        <meta-data
+            android:name="description"
+            android:value="Fast and secure media downloader supporting YT video download, TikTok video download, and Instagram video download directly into phone integrated gallery." />
     </application>
 
 </manifest>
