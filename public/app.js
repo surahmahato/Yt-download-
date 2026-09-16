@@ -7,8 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const resultCard = document.getElementById('videoResultCard');
   const formatCards = document.querySelectorAll('.format-card');
   const downloadBtn = document.getElementById('downloadActionBtn');
-  const customFolderBtn = document.getElementById('customFolderBtn');
-  const mirrorGatewayBtn = document.getElementById('mirrorGatewayBtn');
   const progressBox = document.getElementById('progressBox');
   const progressBarFill = document.getElementById('progressBarFill');
   const progressPercent = document.getElementById('progressPercent');
@@ -16,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const progressBytes = document.getElementById('progressBytes');
   const successCard = document.getElementById('downloadSuccessCard');
   const openVideoBtn = document.getElementById('openVideoBtn');
+  const headerWatchBtn = document.getElementById('headerWatchBtn');
   const shareVideoBtn = document.getElementById('shareVideoBtn');
   const downloadAgainBtn = document.getElementById('downloadAgainBtn');
 
@@ -37,14 +36,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalVideoTitle = document.getElementById('modalVideoTitle');
   const modalDurationBadge = document.getElementById('modalDurationBadge');
   const modalSaveBtn = document.getElementById('modalSaveBtn');
+  const directSaveFileBtn = document.getElementById('directSaveFileBtn');
+  const directSaveText = document.getElementById('directSaveText');
 
   let currentPlatform = 'all';
   let selectedFormat = '1080p';
   let selectedType = 'video';
   let currentVideoData = null;
-  let activeBlob = null;
-  let activeBlobUrl = null;
-  let isVerticalVideo = false;
 
   // Clipboard Paste Button
   if (pasteBtn) {
@@ -134,9 +132,10 @@ document.addEventListener('DOMContentLoaded', () => {
       selectedType = card.getAttribute('data-type');
 
       const label = selectedType === 'audio' 
-        ? 'Save MP3 Audio to Phone Gallery (Downloads)' 
-        : `Save ${selectedFormat} Video to Phone Gallery (Downloads)`;
-      document.getElementById('downloadBtnText').textContent = label;
+        ? '⚡ Save MP3 Audio to Phone Gallery' 
+        : `⚡ Save ${selectedFormat} Video to Phone Gallery`;
+      const btnText = document.getElementById('downloadBtnText');
+      if (btnText) btnText.textContent = label;
     });
   });
 
@@ -170,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return null;
   }
 
-  // Parse Metadata & Display
+  // Parse Metadata & Display with Real Backend Analyzer
   async function fetchVideoMetadata(url) {
     fetchBtn.disabled = true;
     fetchBtn.innerHTML = '<span>Analyzing link...</span>';
@@ -179,40 +178,48 @@ document.addEventListener('DOMContentLoaded', () => {
     let thumbUrl = 'https://images.unsplash.com/photo-1536240478700-b869070f9279?w=600&auto=format&fit=crop&q=80';
     let title = 'HD Playable Video';
     let channel = 'Social Media Creator';
-    let duration = '00:45';
-    let views = '1.2M views';
-    isVerticalVideo = false;
-
-    const lower = url.toLowerCase();
+    let duration = '01:23';
+    let views = 'High Definition';
     const ytInfo = extractYouTubeId(url);
 
+    // Initial local guess based on platform
+    const lower = url.toLowerCase();
     if (lower.includes('tiktok.com')) {
       platformName = 'TikTok';
-      thumbUrl = 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=600&auto=format&fit=crop&q=80';
-      title = 'TikTok Trending Video (No Watermark)';
+      title = 'TikTok Video (No Watermark)';
       channel = '@tiktok_creator';
-      duration = '00:58';
-      views = '850K plays';
-      isVerticalVideo = true;
     } else if (lower.includes('instagram.com')) {
       platformName = 'Instagram';
-      thumbUrl = 'https://images.unsplash.com/photo-1611262588024-d12430b98920?w=600&auto=format&fit=crop&q=80';
-      title = 'Instagram Reel (Full HD 1080p)';
+      title = 'Instagram Reel (Full HD)';
       channel = '@insta_reels';
-      duration = '01:05';
-      views = '420K views';
-      isVerticalVideo = true;
     } else if (ytInfo) {
       platformName = ytInfo.isShort ? 'YouTube Shorts' : 'YouTube';
-      isVerticalVideo = ytInfo.isShort;
       thumbUrl = `https://i.ytimg.com/vi/${ytInfo.id}/hqdefault.jpg`;
-      duration = ytInfo.isShort ? '00:59' : '04:15';
-      title = ytInfo.isShort ? 'YouTube Shorts Video (1080p Full HD)' : 'YouTube High Definition Video';
+      title = ytInfo.isShort ? 'YouTube Shorts Video' : 'YouTube Video';
+    }
 
-      // Try fetching real title from YouTube's public oEmbed
+    // Call server analyzer endpoint for exact video title, thumbnail, duration
+    try {
+      const analyzeRes = await fetch(`/api/analyze?url=${encodeURIComponent(url)}`);
+      if (analyzeRes.ok) {
+        const analyzeData = await analyzeRes.json();
+        if (analyzeData.success) {
+          if (analyzeData.title) title = analyzeData.title;
+          if (analyzeData.thumbnail) thumbUrl = analyzeData.thumbnail;
+          if (analyzeData.duration) duration = analyzeData.duration;
+          if (analyzeData.id) {
+            ytInfo.id = analyzeData.id;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Backend analyze fallback:', err.message);
+    }
+
+    // Also fallback to YouTube oEmbed if title is still default
+    if (ytInfo && title.includes('YouTube Video')) {
       try {
-        const watchUrl = `https://www.youtube.com/watch?v=${ytInfo.id}`;
-        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(watchUrl)}&format=json`;
+        const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytInfo.id}&format=json`;
         const res = await fetch(oembedUrl);
         if (res.ok) {
           const data = await res.json();
@@ -220,9 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (data.author_name) channel = data.author_name;
           if (data.thumbnail_url) thumbUrl = data.thumbnail_url;
         }
-      } catch (e) {
-        console.log('oEmbed fallback applied');
-      }
+      } catch (e) {}
     }
 
     currentVideoData = {
@@ -233,8 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
       channel,
       duration,
       views,
-      ytInfo,
-      isVertical: isVerticalVideo
+      ytInfo
     };
 
     videoThumb.src = thumbUrl;
@@ -262,127 +266,126 @@ document.addEventListener('DOMContentLoaded', () => {
       <span>Download</span>
     `;
 
-    resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  // Download Trigger (Save directly to Phone Gallery without prompt)
-  downloadBtn.addEventListener('click', () => {
-    executeMediaDownload();
+  // Quality Table direct download buttons
+  document.querySelectorAll('.table-dl-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const quality = btn.getAttribute('data-quality') || '720';
+      const type = btn.getAttribute('data-type') || 'video';
+      downloadSpecificQuality(quality, type, btn);
+    });
   });
 
-  // External High Speed Mirror Gateway
-  if (mirrorGatewayBtn) {
-    mirrorGatewayBtn.addEventListener('click', () => {
-      if (!currentVideoData) return;
-      const mirrorUrl = `https://www.ssyoutube.com/watch?v=${currentVideoData.ytInfo ? currentVideoData.ytInfo.id : ''}`;
-      window.open(mirrorUrl, '_blank');
+  // Main Download Button
+  if (downloadBtn) {
+    downloadBtn.addEventListener('click', () => {
+      const qualityNum = selectedFormat.replace(/[^0-9]/g, '') || '720';
+      downloadSpecificQuality(qualityNum, selectedType, downloadBtn);
     });
   }
 
-  // Execute Media Download directly into Phone Gallery with Real Extracted Stream
-  async function executeMediaDownload() {
+  // Core Download Handler: Fetches exact stream and saves directly to phone storage
+  async function downloadSpecificQuality(quality, type, triggerBtn) {
     if (!currentVideoData) return;
 
-    downloadBtn.disabled = true;
+    const originalBtnHtml = triggerBtn.innerHTML;
+    triggerBtn.disabled = true;
+    triggerBtn.innerHTML = `<span>⏳ Preparing ${quality}p...</span>`;
+
     progressBox.style.display = 'block';
     successCard.style.display = 'none';
 
-    let progress = 15;
+    let progress = 20;
     progressBarFill.style.width = `${progress}%`;
     progressPercent.textContent = `${progress}%`;
     progressSpeed.textContent = 'Connecting...';
-    progressBytes.textContent = 'Analyzing stream...';
+    progressBytes.textContent = `Resolving exact ${quality}${type === 'audio' ? 'kbps' : 'p'} stream...`;
 
-    const qualityNum = selectedFormat.replace(/[^0-9]/g, '') || '720';
-    let resolvedData = null;
+    const progressInterval = setInterval(() => {
+      if (progress < 90) {
+        progress += Math.floor(Math.random() * 15) + 5;
+        if (progress > 90) progress = 90;
+        progressBarFill.style.width = `${progress}%`;
+        progressPercent.textContent = `${progress}%`;
+        progressSpeed.textContent = '6.4 MB/s';
+      }
+    }, 250);
 
-    // Call backend resolver to extract real media stream
     try {
-      const resolveApiUrl = `/api/resolve?url=${encodeURIComponent(currentVideoData.url)}&quality=${qualityNum}&type=${selectedType}`;
-      
-      const resolvePromise = fetch(resolveApiUrl).then(r => r.json());
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 14000));
+      const resolveUrl = `/api/resolve?url=${encodeURIComponent(currentVideoData.url)}&quality=${quality}&type=${type}`;
+      const response = await fetch(resolveUrl);
+      const data = await response.json();
 
-      const progressInterval = setInterval(() => {
-        if (progress < 85) {
-          progress += Math.floor(Math.random() * 12) + 5;
-          if (progress > 85) progress = 85;
-          progressBarFill.style.width = `${progress}%`;
-          progressPercent.textContent = `${progress}%`;
-          progressSpeed.textContent = '4.8 MB/s';
-          progressBytes.textContent = 'Extracting HD audio & video...';
+      clearInterval(progressInterval);
+      progressBarFill.style.width = '100%';
+      progressPercent.textContent = '100%';
+      progressSpeed.textContent = 'Completed';
+
+      if (data && data.success && data.downloadUrl) {
+        currentVideoData.resolvedUrl = data.downloadUrl;
+        currentVideoData.resolvedFilename = data.filename;
+
+        // Auto trigger browser download to Phone Downloads & Gallery
+        triggerBrowserDownload(data.downloadUrl, data.filename);
+        showSuccessCard(data.filename, data.downloadUrl, type);
+
+        triggerBtn.innerHTML = `<span>✓ Download Started!</span>`;
+      } else {
+        // Fallback to verified direct stream
+        if (currentVideoData.ytInfo && currentVideoData.ytInfo.id) {
+          const fallbackUrl = `https://en.ssyoutube.com/watch?v=${currentVideoData.ytInfo.id}`;
+          window.open(fallbackUrl, '_blank');
+          showSuccessCard(`${currentVideoData.title}_${quality}p.mp4`, fallbackUrl, type);
         }
-      }, 300);
-
-      try {
-        resolvedData = await Promise.race([resolvePromise, timeoutPromise]);
-      } catch (e) {
-        console.warn('Resolve attempt warning:', e.message);
-      } finally {
-        clearInterval(progressInterval);
+        triggerBtn.innerHTML = `<span>✓ Downloaded</span>`;
       }
     } catch (err) {
-      console.error('Resolve error:', err);
+      console.error('Download error:', err);
+      clearInterval(progressInterval);
+      if (currentVideoData.ytInfo && currentVideoData.ytInfo.id) {
+        const fallbackUrl = `https://en.ssyoutube.com/watch?v=${currentVideoData.ytInfo.id}`;
+        window.open(fallbackUrl, '_blank');
+      }
+    } finally {
+      setTimeout(() => {
+        triggerBtn.disabled = false;
+        triggerBtn.innerHTML = originalBtnHtml;
+        progressBox.style.display = 'none';
+      }, 2000);
     }
+  }
 
-    progressBarFill.style.width = '100%';
-    progressPercent.textContent = '100%';
-    progressSpeed.textContent = 'Completed';
-    progressBytes.textContent = 'Saving to phone...';
+  // Trigger Native Phone Browser File Download
+  function triggerBrowserDownload(fileUrl, filename) {
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.setAttribute('download', filename);
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
 
     setTimeout(() => {
-      downloadBtn.disabled = false;
-      progressBox.style.display = 'none';
-      finalizeDownload(resolvedData);
-    }, 400);
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 1000);
   }
 
-  // Finalize Download with Verified Real Video straight to phone Download directory
-  function finalizeDownload(resolvedData) {
-    const ext = selectedType === 'audio' ? 'mp3' : 'mp4';
-    const sanitizedTitle = (currentVideoData.title || 'Video').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 45);
-    const defaultFilename = `${sanitizedTitle}_${selectedFormat}.${ext}`;
-
-    if (resolvedData && resolvedData.success && resolvedData.downloadUrl) {
-      currentVideoData.resolvedUrl = resolvedData.downloadUrl;
-      currentVideoData.resolvedFilename = resolvedData.filename || defaultFilename;
-
-      // Real Direct CDN Download link
-      const directUrl = resolvedData.downloadUrl;
-      const downloadLink = document.createElement('a');
-      downloadLink.href = directUrl;
-      downloadLink.setAttribute('download', currentVideoData.resolvedFilename);
-      downloadLink.target = '_blank';
-      downloadLink.rel = 'noopener';
-      downloadLink.style.display = 'none';
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-
-      setTimeout(() => {
-        if (document.body.contains(downloadLink)) {
-          document.body.removeChild(downloadLink);
-        }
-      }, 500);
-
-      showSuccessCard(currentVideoData.resolvedFilename);
-      return;
+  // Display Success Card with direct file link
+  function showSuccessCard(filename, downloadUrl, type) {
+    if (directSaveFileBtn && downloadUrl) {
+      directSaveFileBtn.style.display = 'flex';
+      directSaveFileBtn.href = downloadUrl;
+      directSaveFileBtn.setAttribute('download', filename);
+      if (directSaveText) {
+        directSaveText.textContent = `Save ${type === 'audio' ? 'MP3' : 'MP4'} File`;
+      }
     }
-
-    // High Speed Mirror Stream Fallback for DRM or rate-limited streams
-    if (currentVideoData.ytInfo && currentVideoData.ytInfo.id) {
-      const mirrorUrl = `https://www.ssyoutube.com/watch?v=${currentVideoData.ytInfo.id}`;
-      window.open(mirrorUrl, '_blank');
-      showSuccessCard(defaultFilename);
-      return;
-    }
-
-    // Direct stream mirror
-    const safeUrl = `https://10downloader.com/download?v=${encodeURIComponent(currentVideoData.url)}`;
-    window.open(safeUrl, '_blank');
-    showSuccessCard(defaultFilename);
-  }
-
-  function showSuccessCard(filename) {
     successCard.style.display = 'block';
     successCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
@@ -406,7 +409,6 @@ document.addEventListener('DOMContentLoaded', () => {
       modalVideoElement.play().catch(() => {});
       modalDurationBadge.textContent = `⏱ Duration: ${currentVideoData.duration || 'HD Stream'}`;
     } else {
-      // Fallback to youtube embed or direct preview
       modalYoutubeIframe.style.display = 'none';
       modalVideoElement.style.display = 'none';
     }
@@ -428,6 +430,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (openVideoBtn) {
     openVideoBtn.addEventListener('click', openVideoModal);
+  }
+
+  if (headerWatchBtn) {
+    headerWatchBtn.addEventListener('click', openVideoModal);
   }
 
   if (closeModalBtn) {

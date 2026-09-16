@@ -138,12 +138,16 @@
               <span id="videoPlatformBadge" class="platform-pill youtube">YouTube</span>
               <span id="videoViews">1.2M views</span>
             </div>
+            <button type="button" id="headerWatchBtn" class="watch-preview-btn">
+              <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <span>Play &amp; Watch Video</span>
+            </button>
           </div>
         </div>
 
         <!-- Format Options -->
         <div class="format-selection">
-          <div class="section-label">Select Download Format & Quality</div>
+          <div class="section-label">Select Download Format &amp; Quality</div>
           <div class="format-grid">
             <div class="format-card selected" data-quality="1080p" data-type="video">
               <div class="format-top">
@@ -152,7 +156,7 @@
               </div>
               <div class="format-details">
                 <span>Best Quality</span>
-                <span>~42.6 MB</span>
+                <span>Direct MP4</span>
               </div>
             </div>
 
@@ -163,18 +167,18 @@
               </div>
               <div class="format-details">
                 <span>Standard HD</span>
-                <span>~24.1 MB</span>
+                <span>Direct MP4</span>
               </div>
             </div>
 
-            <div class="format-card" data-quality="480p" data-type="video">
+            <div class="format-card" data-quality="360p" data-type="video">
               <div class="format-top">
-                <span class="format-quality">480p SD</span>
+                <span class="format-quality">360p Fast</span>
                 <span class="format-badge">MP4</span>
               </div>
               <div class="format-details">
-                <span>Data Saver</span>
-                <span>~12.8 MB</span>
+                <span>Mobile Fast</span>
+                <span>Direct MP4</span>
               </div>
             </div>
 
@@ -184,21 +188,96 @@
                 <span class="format-badge audio">MP3</span>
               </div>
               <div class="format-details">
-                <span>320 kbps High Quality</span>
-                <span>~5.8 MB</span>
+                <span>Crystal Clear Audio</span>
+                <span>Direct MP3</span>
               </div>
             </div>
           </div>
 
+          <!-- Direct Download Table (Similar to SaveFrom & Y2Mate) -->
+          <div class="quality-table-wrap">
+            <table class="quality-table">
+              <thead>
+                <tr>
+                  <th>Resolution / Quality</th>
+                  <th>Format</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="qualityTableBody">
+                <tr>
+                  <td>
+                    <div class="quality-title-cell">
+                      <span>1080p (Full HD)</span>
+                      <span class="quality-badge-tag hd">1080p</span>
+                    </div>
+                  </td>
+                  <td>MP4 Video</td>
+                  <td>
+                    <button type="button" class="btn-table-download table-dl-btn" data-quality="1080" data-type="video">
+                      <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                      <span>Download 1080p</span>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="quality-title-cell">
+                      <span>720p (HD)</span>
+                      <span class="quality-badge-tag hd">720p</span>
+                    </div>
+                  </td>
+                  <td>MP4 Video</td>
+                  <td>
+                    <button type="button" class="btn-table-download table-dl-btn" data-quality="720" data-type="video">
+                      <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                      <span>Download 720p</span>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="quality-title-cell">
+                      <span>360p (Fast Download)</span>
+                      <span class="quality-badge-tag">360p</span>
+                    </div>
+                  </td>
+                  <td>MP4 Video</td>
+                  <td>
+                    <button type="button" class="btn-table-download table-dl-btn" data-quality="360" data-type="video">
+                      <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                      <span>Download 360p</span>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="quality-title-cell">
+                      <span>MP3 Audio (High Quality)</span>
+                      <span class="quality-badge-tag audio">MP3</span>
+                    </div>
+                  </td>
+                  <td>MP3 Audio</td>
+                  <td>
+                    <button type="button" class="btn-table-download table-dl-btn" data-quality="128" data-type="audio" style="background:#0284c7;">
+                      <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                      <span>Download MP3</span>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
           <!-- Gallery Integration Banner -->
-          <div class="gallery-notice-banner">
+          <div class="gallery-notice-banner" style="margin-top:20px;">
             <div class="gallery-notice-icon">
               <svg style="width:28px;height:28px;fill:currentColor" viewBox="0 0 24 24">
                 <path d="M22 16V4c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2zm-11-4l2.03 2.71L16 11l4 5H8l3-4zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6H2z"/>
               </svg>
             </div>
             <div class="gallery-notice-text">
-              <h4>Direct Device & Phone Gallery Integration</h4>
+              <h4>Direct Device &amp; Phone Gallery Integration</h4>
               <p>Downloads are saved in full playable MP4/MP3 format into your phone's <strong>Downloads</strong> folder and instantly appear in your <strong>Gallery / Google Photos / Mi Video</strong>.</p>
             </div>
           </div>
@@ -209,10 +288,10 @@
               <svg style="width:22px;height:22px;fill:currentColor" viewBox="0 0 24 24">
                 <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
               </svg>
-              <span id="downloadBtnText">⚡ Download Directly to Phone Gallery</span>
+              <span id="downloadBtnText">⚡ Download Selected Format to Phone Gallery</span>
             </button>
             <div class="auto-download-notice">
-              <span>⚡ 1-Click Instant Save: Downloads directly to your phone's <strong>Download</strong> folder and immediately appears in your <strong>Phone Gallery</strong> without popup prompts.</span>
+              <span>⚡ 1-Click Instant Save: Downloads directly into your phone's <strong>Downloads</strong> folder and immediately appears in your <strong>Phone Gallery</strong>.</span>
             </div>
           </div>
 
@@ -251,6 +330,10 @@
             </div>
 
             <div class="success-actions">
+              <a id="directSaveFileBtn" class="btn-primary-preview" href="#" download="" style="text-decoration:none;display:none;align-items:center;justify-content:center;gap:8px;background:#10b981;">
+                <svg style="width:18px;height:18px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                <span id="directSaveText">Save MP4 File</span>
+              </a>
               <button id="openVideoBtn" class="btn-primary-preview">
                 <svg style="width:18px;height:18px;fill:currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 <span>Play &amp; Watch Video</span>
