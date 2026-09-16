@@ -1,9 +1,9 @@
-<!-- Redirect/Mirror to public/index.html or serve directly -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="google-site-verification" content="_x3QzyHg2Qqu5Pdg-7XUf53XsXdpziPBfkG9L1OhQIg" />
 
   <!-- SEO Meta Tags -->
   <title>YT Download - Fast Video Downloader for YouTube, TikTok & Instagram</title>
@@ -43,7 +43,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="public/styles.css">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -199,22 +199,35 @@
             </div>
             <div class="gallery-notice-text">
               <h4>Direct Device & Phone Gallery Integration</h4>
-              <p>Videos and audio save straight into your phone’s media library and sync automatically with Google Photos, Samsung Gallery, and local players.</p>
+              <p>Downloads are saved in full playable MP4/MP3 format into your phone's <strong>Downloads</strong> folder and instantly appear in your <strong>Gallery / Google Photos / Mi Video</strong>.</p>
             </div>
           </div>
 
-          <!-- Primary Download Button -->
-          <button type="button" id="downloadActionBtn" class="download-action-btn">
-            <svg style="width:22px;height:22px;fill:currentColor" viewBox="0 0 24 24">
-              <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
-            </svg>
-            <span id="downloadBtnText">Save 1080p Video to Phone Gallery</span>
-          </button>
+          <!-- Download Action Buttons -->
+          <div class="download-buttons-group">
+            <button type="button" id="downloadActionBtn" class="download-action-btn">
+              <svg style="width:22px;height:22px;fill:currentColor" viewBox="0 0 24 24">
+                <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
+              </svg>
+              <span id="downloadBtnText">⚡ Download Directly to Phone Gallery</span>
+            </button>
+            <div class="auto-download-notice">
+              <span>⚡ 1-Click Instant Save: Downloads directly to your phone's <strong>Download</strong> folder and immediately appears in your <strong>Phone Gallery</strong> without popup prompts.</span>
+            </div>
+          </div>
+
+          <!-- Direct Mirror Gateway Button -->
+          <div class="mirror-gateway-box">
+            <span>Want original YouTube stream?</span>
+            <button type="button" id="mirrorGatewayBtn" class="mirror-link-btn">
+              ⚡ Open Direct High-Speed Video Stream Mirror
+            </button>
+          </div>
 
           <!-- Download Progress Indicator -->
           <div id="progressBox" class="progress-box">
             <div class="progress-header">
-              <span>Downloading to Phone Gallery...</span>
+              <span>Generating Playable Media for Phone Gallery...</span>
               <span id="progressPercent">0%</span>
             </div>
             <div class="progress-bar-bg">
@@ -229,19 +242,25 @@
           <!-- Completed Success Card -->
           <div id="downloadSuccessCard" class="download-success-card">
             <div class="success-icon">✓</div>
-            <div class="success-title">Video Saved to Phone Gallery!</div>
-            <p class="success-desc">The file has been saved to your downloads and is visible in your phone gallery.</p>
+            <div class="success-title">Video Saved to Your Phone!</div>
+            <p class="success-desc">The file is 100% playable with complete duration and audio.</p>
+
+            <div class="gallery-path-info">
+              <div class="path-badge">📁 Saved to: <strong>Internal Storage &gt; Download folder</strong></div>
+              <p class="path-tip">Check your phone's <strong>Gallery app</strong> under the <em>"Download"</em> album or open <strong>Google Photos / Mi Video</strong>.</p>
+            </div>
+
             <div class="success-actions">
-              <button id="openVideoBtn" class="btn-secondary">
-                <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                Open Video
+              <button id="openVideoBtn" class="btn-primary-preview">
+                <svg style="width:18px;height:18px;fill:currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                <span>Play &amp; Watch Video</span>
               </button>
               <button id="shareVideoBtn" class="btn-secondary">
                 <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>
-                Share
+                <span>Share</span>
               </button>
               <button id="downloadAgainBtn" class="btn-secondary">
-                Download Another
+                <span>Download Another</span>
               </button>
             </div>
           </div>
@@ -377,6 +396,41 @@
     </div>
   </footer>
 
-  <script src="public/app.js"></script>
+  <!-- In-Browser Video Player Modal -->
+  <div id="videoPlayerModal" class="video-player-modal" style="display:none;">
+    <div class="video-modal-backdrop" id="modalBackdrop"></div>
+    <div class="video-modal-dialog">
+      <div class="video-modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-live-tag">● Playable Stream</span>
+          <h3 id="modalVideoTitle">Play Video</h3>
+        </div>
+        <button type="button" id="closeModalBtn" class="modal-close-btn" aria-label="Close Player">&times;</button>
+      </div>
+
+      <div class="video-modal-body">
+        <div class="modal-video-container">
+          <video id="modalVideoElement" controls playsinline preload="metadata">
+            <source id="modalVideoSource" src="" type="video/mp4">
+            Your browser does not support HTML5 video playback.
+          </video>
+        </div>
+        <div class="modal-video-meta">
+          <span id="modalDurationBadge" class="duration-badge">⏱ Duration: Ready</span>
+          <span class="gallery-badge">📱 100% Phone Gallery Compatible</span>
+        </div>
+      </div>
+
+      <div class="video-modal-footer">
+        <button type="button" id="modalSaveBtn" class="download-action-btn" style="padding: 10px 18px; font-size: 0.9rem;">
+          <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+          <span>Save to Phone Gallery (Downloads)</span>
+        </button>
+        <button type="button" id="modalCloseActionBtn" class="btn-secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>

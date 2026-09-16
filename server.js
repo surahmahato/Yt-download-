@@ -68,10 +68,19 @@ const server = http.createServer((req, res) => {
     const ext = path.extname(resolvedPath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
-    res.writeHead(200, {
+    const headers = {
       'Content-Type': contentType,
       'Cache-Control': 'public, max-age=3600'
-    });
+    };
+
+    // If download query param is present or it's media/apk, enforce attachment download
+    const urlObj = new URL(req.url, `http://${req.headers.host}`);
+    if (urlObj.searchParams.get('download') === '1' || ext === '.apk') {
+      const downloadFilename = urlObj.searchParams.get('filename') || path.basename(resolvedPath);
+      headers['Content-Disposition'] = `attachment; filename="${downloadFilename}"`;
+    }
+
+    res.writeHead(200, headers);
 
     const stream = fs.createReadStream(resolvedPath);
     stream.pipe(res);
