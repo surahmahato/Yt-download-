@@ -1,6 +1,17 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const url = require('url');
+
+let ytmp4, ytmp3;
+try {
+  const scraper = require('@vreden/youtube_scraper');
+  ytmp4 = scraper.ytmp4;
+  ytmp3 = scraper.ytmp3;
+} catch (e) {
+  console.warn('Scraper module load warning:', e.message);
+}
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -21,9 +32,10 @@ const MIME_TYPES = {
   '.apk': 'application/vnd.android.package-archive'
 };
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   // Normalize URL
-  let reqPath = req.url.split('?')[0];
+  const parsedUrl = url.parse(req.url, true);
+  let reqPath = parsedUrl.pathname;
   if (reqPath === '/') {
     reqPath = '/index.html';
   }
@@ -33,6 +45,115 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }));
     return;
+  }
+
+  // API: Resolve real video direct download URL
+  if (reqPath === '/api/resolve') {
+    const videoUrl = parsedUrl.query.url;
+    const quality = parsedUrl.query.quality || '720';
+    const type = parsedUrl.query.type || 'video';
+
+    if (!videoUrl) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: 'Missing url parameter' }));
+      return;
+    }
+
+    try {
+      let qualityNum = parseInt(quality, 10);
+      if (isNaN(qualityNum)) qualityNum = 720;
+
+      let result;
+      if (type === 'audio' && ytmp3) {
+        result = await ytmp3(videoUrl, qualityNum || 128);
+      } else if (ytmp4) {
+        result = await ytmp4(videoUrl, qualityNum);
+      }
+
+      if (result && result.status && result.download && result.download.url) {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({
+          success: true,
+          downloadUrl: result.download.url,
+          filename: result.download.filename,
+          quality: result.download.quality,
+          title: result.metadata ? result.metadata.title : '',
+          duration: result.metadata && result.metadata.duration ? result.metadata.duration.timestamp : '',
+          views: result.metadata ? result.metadata.views : '',
+          thumbnail: result.metadata ? result.metadata.thumbnail : '',
+          author: result.metadata && result.metadata.author ? result.metadata.author.name : ''
+        }));
+        return;
+      } else {
+        throw new Error(result && result.message ? result.message : 'Could not resolve stream URL');
+      }
+    } catch (err) {
+      console.error('Resolve error:', err.message);
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      });
+      res.end(JSON.stringify({
+        success: false,
+        error: err.message
+      }));
+      return;
+    }
+  }
+
+  // API: Stream proxy for downloading video files directly
+  if (reqPath === '/api/proxy-download') {
+    const targetUrl = parsedUrl.query.url;
+    const filename = parsedUrl.query.filename || 'video.mp4';
+
+    if (!targetUrl) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Missing url');
+      return;
+    }
+
+    try {
+      const client = targetUrl.startsWith('https') ? https : http;
+      client.get(targetUrl, (streamRes) => {
+        if (streamRes.statusCode >= 300 && streamRes.statusCode < 400 && streamRes.headers.location) {
+          // Follow redirect
+          client.get(streamRes.headers.location, (redirRes) => {
+            const ext = path.extname(filename).toLowerCase();
+            const contentType = MIME_TYPES[ext] || 'video/mp4';
+            res.writeHead(200, {
+              'Content-Type': contentType,
+              'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+              'Access-Control-Allow-Origin': '*'
+            });
+            redirRes.pipe(res);
+          }).on('error', () => {
+            res.writeHead(500, { 'Content-Type': 'text/plain' });
+            res.end('Proxy redirect stream error');
+          });
+          return;
+        }
+
+        const ext = path.extname(filename).toLowerCase();
+        const contentType = MIME_TYPES[ext] || 'video/mp4';
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+          'Access-Control-Allow-Origin': '*'
+        });
+        streamRes.pipe(res);
+      }).on('error', (e) => {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end(`Proxy stream error: ${e.message}`);
+      });
+      return;
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end(`Proxy exception: ${err.message}`);
+      return;
+    }
   }
 
   // Check in public/ first, then root directory
@@ -90,3 +211,4 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`YT Download Web server running live on port ${PORT}`);
 });
+
