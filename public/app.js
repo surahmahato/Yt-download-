@@ -518,4 +518,179 @@ document.addEventListener('DOMContentLoaded', () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   }
+
+  // Legal & Info Modals (Terms, Privacy Policy, Contact Us)
+  const infoModal = document.getElementById('infoModal');
+  const infoModalBackdrop = document.getElementById('infoModalBackdrop');
+  const infoModalTitle = document.getElementById('infoModalTitle');
+  const infoModalBody = document.getElementById('infoModalBody');
+  const closeInfoModalBtn = document.getElementById('closeInfoModalBtn');
+  const infoModalCloseActionBtn = document.getElementById('infoModalCloseActionBtn');
+  const termsConditionsLink = document.getElementById('termsConditionsLink');
+  const privacyPolicyLink = document.getElementById('privacyPolicyLink');
+  const contactUsLink = document.getElementById('contactUsLink');
+
+  const legalContent = {
+    terms: {
+      title: 'Terms & Conditions',
+      html: `
+        <div style="display:flex;flex-direction:column;gap:18px;">
+          <p style="color:var(--text-muted);font-size:0.85rem;">Last Updated: September 2026</p>
+          
+          <div style="background:#f8fafc;border-left:4px solid var(--primary-color);padding:14px 16px;border-radius:4px;">
+            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">1. Platform Disclaimer</h4>
+            <p style="color:#334155;line-height:1.6;">"This website is an independent utility and is not affiliated with, sponsored by, or endorsed by YouTube, TikTok, Instagram, Facebook, or any of their parent companies."</p>
+          </div>
+
+          <div style="background:#f8fafc;border-left:4px solid var(--accent-cyan);padding:14px 16px;border-radius:4px;">
+            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">2. User Responsibility & Fair Use</h4>
+            <p style="color:#334155;line-height:1.6;">"By using this tool, you represent and warrant that you own the rights to the content or have secured explicit permission from the original owner before downloading. You agree not to download copyrighted material without proper authorization."</p>
+          </div>
+
+          <div style="background:#f8fafc;border-left:4px solid var(--tiktok-pink);padding:14px 16px;border-radius:4px;">
+            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">3. Limitation of Liability</h4>
+            <p style="color:#334155;line-height:1.6;">"This service is provided 'as is' without warranties of any kind. We accept no liability or responsibility for how downloaded files are stored, shared, or utilized by the end user."</p>
+          </div>
+
+          <div>
+            <h4 style="font-size:1rem;margin-bottom:6px;color:var(--text-main);">4. Acceptable Use</h4>
+            <p style="color:var(--text-muted);line-height:1.6;">You agree to use this platform only for lawful personal purposes and in strict compliance with applicable intellectual property and copyright regulations.</p>
+          </div>
+
+          <div style="margin-top:8px;padding-top:14px;border-top:1px solid var(--border-color);font-size:0.85rem;color:var(--text-muted);">
+            Questions about these terms? Reach out to us at <a href="mailto:xinghsuraj733@gmail.com" style="color:var(--primary-color);font-weight:600;">xinghsuraj733@gmail.com</a>.
+          </div>
+        </div>
+      `
+    },
+    privacy: {
+      title: 'Privacy Policy',
+      html: `
+        <div style="display:flex;flex-direction:column;gap:18px;">
+          <p style="color:var(--text-muted);font-size:0.85rem;">Last Updated: September 2026</p>
+
+          <div>
+            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">1. Overview & Commitment</h4>
+            <p style="color:#334155;line-height:1.6;">Your privacy is paramount to us. YT Download operates as a client-first media utility designed to minimize data collection and preserve user anonymity.</p>
+          </div>
+
+          <div style="background:#f8fafc;border-left:4px solid var(--accent-green);padding:14px 16px;border-radius:4px;">
+            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">2. Information We Do NOT Collect</h4>
+            <ul style="padding-left:20px;color:#334155;line-height:1.7;">
+              <li>We do <strong>not</strong> require account registration, usernames, or passwords.</li>
+              <li>We do <strong>not</strong> store or archive downloaded video files on our servers. All video and audio streams are processed directly in transit to your device.</li>
+              <li>We do <strong>not</strong> track, sell, or monetize your search history or personal information.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">3. Logs & Technical Metrics</h4>
+            <p style="color:#334155;line-height:1.6;">Temporary diagnostic headers (e.g. rate-limiting, error reporting, and load balancing) may be processed in server volatile memory to maintain service health, prevent abuse, and deliver fast response times. These temporary logs are automatically flushed.</p>
+          </div>
+
+          <div>
+            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">4. Cookies & Local Storage</h4>
+            <p style="color:#334155;line-height:1.6;">We do not use tracking or advertising cookies. Any local state stored in your browser (e.g., UI preferences) remains exclusively on your own device.</p>
+          </div>
+
+          <div>
+            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">5. Third-Party Links & Services</h4>
+            <p style="color:#334155;line-height:1.6;">Our service processes publicly available video URLs from third-party hosting platforms (such as YouTube, TikTok, and Instagram). These third parties maintain independent privacy policies that govern their respective services.</p>
+          </div>
+
+          <div style="margin-top:8px;padding-top:14px;border-top:1px solid var(--border-color);font-size:0.85rem;color:var(--text-muted);">
+            For privacy inquiries or data requests, contact our privacy contact at <a href="mailto:xinghsuraj733@gmail.com" style="color:var(--primary-color);font-weight:600;">xinghsuraj733@gmail.com</a>.
+          </div>
+        </div>
+      `
+    },
+    contact: {
+      title: 'Contact Us',
+      html: `
+        <div style="display:flex;flex-direction:column;gap:18px;">
+          <p style="color:#334155;line-height:1.6;">Have feedback, bug reports, feature requests, or copyright inquiries? We are here to help!</p>
+
+          <div style="background:#f8fafc;border:1px solid var(--border-color);border-radius:10px;padding:18px;">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+              <div style="width:40px;height:40px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;color:var(--primary-color);">
+                <svg style="width:20px;height:20px;fill:currentColor;" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+              </div>
+              <div>
+                <div style="font-size:0.85rem;color:var(--text-muted);font-weight:600;">Official Support Email</div>
+                <a href="mailto:xinghsuraj733@gmail.com" style="font-size:1.1rem;font-weight:700;color:var(--primary-color);text-decoration:none;">xinghsuraj733@gmail.com</a>
+              </div>
+            </div>
+            <p style="font-size:0.88rem;color:var(--text-muted);margin:0;">Feel free to email us directly for swift response regarding service performance, platform compatibility, or legal correspondence.</p>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+            <div style="background:#ffffff;border:1px solid var(--border-color);padding:14px;border-radius:8px;">
+              <h5 style="margin-bottom:4px;color:var(--text-main);font-size:0.95rem;">⚡ Response Time</h5>
+              <p style="font-size:0.85rem;color:var(--text-muted);margin:0;">Inquiries typically receive a reply within 24–48 hours.</p>
+            </div>
+            <div style="background:#ffffff;border:1px solid var(--border-color);padding:14px;border-radius:8px;">
+              <h5 style="margin-bottom:4px;color:var(--text-main);font-size:0.95rem;">🛡️ DMCA & Copyright</h5>
+              <p style="font-size:0.85rem;color:var(--text-muted);margin:0;">Include relevant details in your email to ensure immediate handling.</p>
+            </div>
+          </div>
+        </div>
+      `
+    }
+  };
+
+  function openInfoModal(type) {
+    const item = legalContent[type];
+    if (!item) return;
+    infoModalTitle.textContent = item.title;
+    infoModalBody.innerHTML = item.html;
+    infoModal.style.display = 'flex';
+  }
+
+  function closeInfoModal() {
+    infoModal.style.display = 'none';
+  }
+
+  if (termsConditionsLink) {
+    termsConditionsLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      openInfoModal('terms');
+    });
+  }
+
+  if (privacyPolicyLink) {
+    privacyPolicyLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      openInfoModal('privacy');
+    });
+  }
+
+  if (contactUsLink) {
+    contactUsLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      openInfoModal('contact');
+    });
+  }
+
+  if (closeInfoModalBtn) {
+    closeInfoModalBtn.addEventListener('click', closeInfoModal);
+  }
+
+  if (infoModalCloseActionBtn) {
+    infoModalCloseActionBtn.addEventListener('click', closeInfoModal);
+  }
+
+  if (infoModalBackdrop) {
+    infoModalBackdrop.addEventListener('click', closeInfoModal);
+  }
+
+  // Support URL hash navigation (#terms, #privacy, #contact)
+  function checkHashNavigation() {
+    const hash = window.location.hash.replace('#', '').toLowerCase();
+    if (hash === 'terms') openInfoModal('terms');
+    else if (hash === 'privacy') openInfoModal('privacy');
+    else if (hash === 'contact') openInfoModal('contact');
+  }
+
+  window.addEventListener('hashchange', checkHashNavigation);
+  checkHashNavigation();
 });

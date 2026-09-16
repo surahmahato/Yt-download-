@@ -408,9 +408,10 @@
         </div>
 
         <div class="footer-links">
-          <a href="#">Privacy Policy</a>
-          <a href="#">Terms of Service</a>
-          <a href="#">Contact Us</a>
+          <a href="#privacy" id="privacyPolicyLink">Privacy Policy</a>
+          <a href="#terms" id="termsConditionsLink">Terms & Conditions</a>
+          <a href="#contact" id="contactUsLink">Contact Us</a>
+          <a href="mailto:xinghsuraj733@gmail.com" title="Direct Email Support">xinghsuraj733@gmail.com</a>
           <a href=".build-outputs/app-debug.apk" download="YT_Download.apk">Download Android APK</a>
         </div>
       </div>
@@ -420,6 +421,27 @@
       </div>
     </div>
   </footer>
+
+  <!-- Legal & Info Modal (Terms, Privacy Policy, Contact) -->
+  <div id="infoModal" class="video-player-modal" style="display:none;" role="dialog" aria-modal="true">
+    <div class="video-modal-backdrop" id="infoModalBackdrop"></div>
+    <div class="video-modal-dialog" style="max-width: 680px; max-height: 85vh; overflow-y: auto;">
+      <div class="video-modal-header" style="position: sticky; top: 0; background: #ffffff; z-index: 10; border-bottom: 1px solid var(--border-color); padding: 16px 20px;">
+        <div class="modal-title-wrap">
+          <h3 id="infoModalTitle" style="font-size: 1.2rem; font-weight: 700; color: var(--text-main);">Information</h3>
+        </div>
+        <button type="button" id="closeInfoModalBtn" class="modal-close-btn" aria-label="Close Modal">&times;</button>
+      </div>
+
+      <div class="video-modal-body" id="infoModalBody" style="padding: 24px; color: var(--text-main); font-size: 0.95rem; line-height: 1.7;">
+        <!-- Injected via JavaScript based on link clicked -->
+      </div>
+
+      <div class="video-modal-footer" style="position: sticky; bottom: 0; background: #f8fafc; border-top: 1px solid var(--border-color); padding: 14px 20px; display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" id="infoModalCloseActionBtn" class="btn-secondary" style="padding: 8px 20px;">Close</button>
+      </div>
+    </div>
+  </div>
 
   <!-- In-Browser Video Player Modal -->
   <div id="videoPlayerModal" class="video-player-modal" style="display:none;">

@@ -1389,17 +1389,21 @@ body {
 
 .footer-links {
   display: flex;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
 }
 
 .footer-links a {
   color: var(--text-muted);
   text-decoration: none;
   transition: color 0.2s;
+  font-weight: 500;
 }
 
 .footer-links a:hover {
   color: var(--primary-color);
+  text-decoration: underline;
 }
 
 .disclaimer-text {
