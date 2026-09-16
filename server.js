@@ -6,7 +6,7 @@ const url = require('url');
 const { createDecipheriv } = require('crypto');
 const axios = require('axios');
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.DEFAULT_APP_PORT || process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 const MIME_TYPES = {
@@ -69,6 +69,77 @@ function decodeSavetubeData(enc) {
 
 // Fetch Video Information and Available Download Streams
 async function fetchVideoInfo(rawUrl) {
+  const isTikTok = rawUrl.toLowerCase().includes('tiktok.com');
+  const isInstagram = rawUrl.toLowerCase().includes('instagram.com');
+
+  if (isTikTok) {
+    try {
+      const tikRes = await axios.get(`https://www.tikwm.com/api/?url=${encodeURIComponent(rawUrl)}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        timeout: 8000
+      });
+      if (tikRes.data && tikRes.data.code === 0 && tikRes.data.data) {
+        const d = tikRes.data.data;
+        const dur = d.duration || 30;
+        const durLabel = `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`;
+        return {
+          info: {
+            id: d.id || `tiktok_${Date.now()}`,
+            title: d.title ? d.title.substring(0, 100).replace(/[\r\n]+/g, ' ') : 'TikTok Video (No Watermark)',
+            thumbnail: d.cover || d.origin_cover || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=600&auto=format&fit=crop&q=80',
+            duration: dur,
+            durationLabel: durLabel,
+            directVideo: d.play || d.wmplay,
+            directAudio: d.music || d.play,
+            key: 'tiktok',
+            isTikTok: true,
+            isSocial: true,
+            platform: 'TikTok',
+            originalUrl: rawUrl
+          },
+          cdn: 'tiktok',
+          normalizedUrl: rawUrl
+        };
+      }
+    } catch (tikErr) {
+      console.warn('TikWM fetch failed, falling back:', tikErr.message);
+    }
+
+    return {
+      info: {
+        id: `tiktok_${Date.now()}`,
+        title: 'TikTok Video (No Watermark)',
+        thumbnail: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=600&auto=format&fit=crop&q=80',
+        duration: 30,
+        durationLabel: '0:30',
+        key: 'social_key',
+        isSocial: true,
+        platform: 'TikTok',
+        originalUrl: rawUrl
+      },
+      cdn: 'social',
+      normalizedUrl: rawUrl
+    };
+  }
+
+  if (isInstagram) {
+    return {
+      info: {
+        id: `insta_${Date.now()}`,
+        title: 'Instagram Reel (Full HD)',
+        thumbnail: 'https://images.unsplash.com/photo-1611262588024-d12430b98920?w=600&auto=format&fit=crop&q=80',
+        duration: 30,
+        durationLabel: '0:30',
+        key: 'social_key',
+        isSocial: true,
+        platform: 'Instagram',
+        originalUrl: rawUrl
+      },
+      cdn: 'social',
+      normalizedUrl: rawUrl
+    };
+  }
+
   const normalizedUrl = normalizeVideoUrl(rawUrl);
 
   const cdnRes = await axios.get('https://media.savetube.vip/api/random-cdn', {
@@ -98,14 +169,45 @@ async function fetchVideoInfo(rawUrl) {
 async function resolveDownloadStream(rawUrl, quality, type) {
   const { info, cdn, normalizedUrl } = await fetchVideoInfo(rawUrl);
   const qualityStr = String(quality || (type === 'audio' ? '128' : '720'));
+  const cleanTitle = (info.title || 'video').replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_') || 'video';
+  const ext = type === 'audio' ? 'mp3' : 'mp4';
 
-  // If video and format already has a direct Google CDN stream URL
+  // Handle direct TikTok stream
+  if (info.isTikTok && (info.directVideo || info.directAudio)) {
+    const directUrl = type === 'audio' ? (info.directAudio || info.directVideo) : info.directVideo;
+    return {
+      success: true,
+      downloadUrl: directUrl,
+      filename: `${cleanTitle}_${qualityStr}${type === 'audio' ? 'kbps' : 'p'}.${ext}`,
+      title: info.title,
+      duration: info.durationLabel,
+      thumbnail: info.thumbnail,
+      quality: `${qualityStr}${type === 'audio' ? 'kbps' : 'p'}`,
+      type: type
+    };
+  }
+
+  if (info.isSocial) {
+    const directUrl = `https://en.savefrom.net/398/#url=${encodeURIComponent(rawUrl)}`;
+    return {
+      success: true,
+      downloadUrl: directUrl,
+      isGateway: true,
+      filename: `${cleanTitle}_${qualityStr}${type === 'audio' ? 'kbps' : 'p'}.${ext}`,
+      title: info.title,
+      duration: info.durationLabel,
+      thumbnail: info.thumbnail,
+      quality: `${qualityStr}${type === 'audio' ? 'kbps' : 'p'}`,
+      type: type
+    };
+  }
+
+  // Check direct Google CDN stream URL in video_formats if available
   if (type === 'video' && Array.isArray(info.video_formats)) {
     const directMatch = info.video_formats.find(
       f => String(f.quality) === qualityStr && f.url && f.url.startsWith('http')
     );
     if (directMatch && directMatch.url) {
-      const cleanTitle = (info.title || 'video').replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_');
       return {
         success: true,
         downloadUrl: directMatch.url,
@@ -120,35 +222,68 @@ async function resolveDownloadStream(rawUrl, quality, type) {
   }
 
   // Request merged HD stream from Savetube CDN
-  const dlRes = await axios.post(`https://${cdn}/download`, {
-    downloadType: type === 'audio' ? 'audio' : 'video',
-    quality: qualityStr,
-    key: info.key
-  }, {
-    headers: {
-      'Content-Type': 'application/json',
-      'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36',
-      'Referer': 'https://save-tube.com/'
-    },
-    timeout: 15000
-  });
+  try {
+    const dlRes = await axios.post(`https://${cdn}/download`, {
+      downloadType: type === 'audio' ? 'audio' : 'video',
+      quality: qualityStr,
+      key: info.key
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36',
+        'Referer': 'https://save-tube.com/'
+      },
+      timeout: 15000
+    });
 
-  if (dlRes.data && dlRes.data.data && dlRes.data.data.downloadUrl) {
-    const cleanTitle = (info.title || 'video').replace(/[^a-zA-Z0-9_\-\s]/g, '').trim().replace(/\s+/g, '_');
-    const ext = type === 'audio' ? 'mp3' : 'mp4';
-    return {
-      success: true,
-      downloadUrl: dlRes.data.data.downloadUrl,
-      filename: `${cleanTitle}_${qualityStr}${type === 'audio' ? 'kbps' : 'p'}.${ext}`,
-      title: info.title,
-      duration: info.durationLabel || `${Math.floor(info.duration / 60)}:${(info.duration % 60).toString().padStart(2, '0')}`,
-      thumbnail: info.thumbnail,
-      quality: `${qualityStr}${type === 'audio' ? 'kbps' : 'p'}`,
-      type: type
-    };
+    if (dlRes.data && dlRes.data.data && dlRes.data.data.downloadUrl) {
+      return {
+        success: true,
+        downloadUrl: dlRes.data.data.downloadUrl,
+        filename: `${cleanTitle}_${qualityStr}${type === 'audio' ? 'kbps' : 'p'}.${ext}`,
+        title: info.title,
+        duration: info.durationLabel || `${Math.floor(info.duration / 60)}:${(info.duration % 60).toString().padStart(2, '0')}`,
+        thumbnail: info.thumbnail,
+        quality: `${qualityStr}${type === 'audio' ? 'kbps' : 'p'}`,
+        type: type
+      };
+    }
+  } catch (savetubeErr) {
+    console.warn('Savetube download call error:', savetubeErr.message);
   }
 
-  throw new Error('CDN stream could not be generated for this quality');
+  // Fallback 1: Use any available direct video stream from formats
+  if (Array.isArray(info.video_formats)) {
+    const anyDirect = info.video_formats.find(f => f.url && f.url.startsWith('http'));
+    if (anyDirect) {
+      return {
+        success: true,
+        downloadUrl: anyDirect.url,
+        filename: `${cleanTitle}_${anyDirect.quality || '360'}p.mp4`,
+        title: info.title,
+        duration: info.durationLabel,
+        thumbnail: info.thumbnail,
+        quality: `${anyDirect.quality || '360'}p`,
+        type: 'video'
+      };
+    }
+  }
+
+  // Fallback 2: Direct SSYouTube gateway link
+  const ytMatch = normalizedUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  const videoId = ytMatch ? ytMatch[1] : (info.id || '');
+  const fallbackUrl = videoId ? `https://en.ssyoutube.com/watch?v=${videoId}` : `https://en.savefrom.net/398/#url=${encodeURIComponent(rawUrl)}`;
+  return {
+    success: true,
+    downloadUrl: fallbackUrl,
+    isGateway: true,
+    filename: `${cleanTitle}_${qualityStr}p.mp4`,
+    title: info.title || 'YouTube Video',
+    duration: info.durationLabel || 'Full',
+    thumbnail: info.thumbnail,
+    quality: `${qualityStr}p`,
+    type: type
+  };
 }
 
 const server = http.createServer(async (req, res) => {
@@ -250,7 +385,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // API: Direct proxy stream - Guarantees Content-Disposition attachment for mobile phones
-  if (reqPath === '/api/proxy-download') {
+  if (reqPath === '/api/proxy-download' || reqPath === '/api/download') {
     const targetUrl = parsedUrl.query.url;
     const filename = parsedUrl.query.filename || 'video.mp4';
 
@@ -261,43 +396,46 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const client = targetUrl.startsWith('https') ? https : http;
-      client.get(targetUrl, (streamRes) => {
-        if (streamRes.statusCode >= 300 && streamRes.statusCode < 400 && streamRes.headers.location) {
-          const redirUrl = streamRes.headers.location;
-          const redirClient = redirUrl.startsWith('https') ? https : http;
-          redirClient.get(redirUrl, (finalRes) => {
-            const ext = path.extname(filename).toLowerCase();
-            const contentType = MIME_TYPES[ext] || 'video/mp4';
-            res.writeHead(200, {
-              'Content-Type': contentType,
-              'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
-              'Access-Control-Allow-Origin': '*'
-            });
-            finalRes.pipe(res);
-          }).on('error', () => {
-            res.writeHead(500, { 'Content-Type': 'text/plain' });
-            res.end('Redirect proxy error');
-          });
-          return;
-        }
+      const ext = path.extname(filename).toLowerCase() || '.mp4';
+      const contentType = MIME_TYPES[ext] || (ext === '.mp3' ? 'audio/mpeg' : 'video/mp4');
 
-        const ext = path.extname(filename).toLowerCase();
-        const contentType = MIME_TYPES[ext] || 'video/mp4';
-        res.writeHead(200, {
-          'Content-Type': contentType,
-          'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
-          'Access-Control-Allow-Origin': '*'
-        });
-        streamRes.pipe(res);
-      }).on('error', (e) => {
-        res.writeHead(500, { 'Content-Type': 'text/plain' });
-        res.end(`Proxy stream error: ${e.message}`);
+      const isTiktok = targetUrl.includes('tiktok') || targetUrl.includes('tikwm');
+      const isYt = targetUrl.includes('googlevideo') || targetUrl.includes('savetube');
+      const reqHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36'
+      };
+      if (isTiktok) {
+        reqHeaders['Referer'] = 'https://www.tiktok.com/';
+      } else if (isYt) {
+        reqHeaders['Referer'] = 'https://save-tube.com/';
+      }
+
+      const response = await axios({
+        method: 'GET',
+        url: targetUrl,
+        responseType: 'stream',
+        headers: reqHeaders,
+        timeout: 45000,
+        maxRedirects: 5
       });
+
+      const cleanAscii = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Content-Disposition': `attachment; filename="${cleanAscii}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-cache'
+      });
+
+      response.data.pipe(res);
       return;
     } catch (err) {
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end(`Proxy exception: ${err.message}`);
+      console.error('Proxy stream error:', err.message);
+      // If direct proxy failed, fallback redirect to target url
+      if (!res.headersSent) {
+        res.writeHead(302, { 'Location': targetUrl });
+        res.end();
+      }
       return;
     }
   }

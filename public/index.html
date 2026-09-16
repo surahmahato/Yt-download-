@@ -118,9 +118,9 @@
         <!-- Quick Sample Link Pills -->
         <div class="quick-samples">
           <span>Try sample:</span>
-          <button class="sample-pill" data-url="https://www.youtube.com/watch?v=sample_video">YT Video (4K/1080p)</button>
-          <button class="sample-pill" data-url="https://www.tiktok.com/@creator/video/sample_clip">TikTok (No Watermark)</button>
-          <button class="sample-pill" data-url="https://www.instagram.com/reel/sample_reels/">Instagram Reel</button>
+          <button class="sample-pill" data-url="https://www.youtube.com/watch?v=vUoU0ICQARI">YT Video (1080p/HD)</button>
+          <button class="sample-pill" data-url="https://www.youtube.com/watch?v=jNQXAC9IVRw">Classic (Short)</button>
+          <button class="sample-pill" data-url="https://www.youtube.com/shorts/k73W5qW5j60">Shorts (1080p)</button>
         </div>
       </div>
 
@@ -128,7 +128,7 @@
       <div id="videoResultCard" class="video-result-card">
         <div class="video-info-header">
           <div class="thumbnail-box">
-            <img id="videoThumb" src="" alt="Video Thumbnail">
+            <img id="videoThumb" src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80" alt="Video Thumbnail">
             <span id="videoDuration" class="thumb-duration">03:45</span>
           </div>
           <div class="video-details">
@@ -145,134 +145,76 @@
           </div>
         </div>
 
-        <!-- Format Options -->
+        <!-- Format Options: Single Column Unified List -->
         <div class="format-selection">
-          <div class="section-label">Select Download Format &amp; Quality</div>
-          <div class="format-grid">
-            <div class="format-card selected" data-quality="1080p" data-type="video">
-              <div class="format-top">
-                <span class="format-quality">1080p Full HD</span>
-                <span class="format-badge">MP4</span>
+          <div class="section-label">Select Quality &amp; Download to Phone Gallery</div>
+          
+          <div class="resolution-single-column" id="resolutionSingleColumn">
+            <!-- 1080p Full HD -->
+            <div class="res-item-row" data-quality="1080" data-type="video">
+              <div class="res-left">
+                <span class="res-pill pill-1080">1080p</span>
+                <div class="res-info">
+                  <div class="res-headline">1080p (Full HD) <span class="format-badge-chip">MP4 Video</span></div>
+                  <div class="res-subline">Maximum Quality • 1920x1080 • Direct Playable</div>
+                </div>
               </div>
-              <div class="format-details">
-                <span>Best Quality</span>
-                <span>Direct MP4</span>
-              </div>
+              <button type="button" class="btn-res-action table-dl-btn" data-quality="1080" data-type="video">
+                <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                <span>Download 1080p</span>
+              </button>
             </div>
 
-            <div class="format-card" data-quality="720p" data-type="video">
-              <div class="format-top">
-                <span class="format-quality">720p HD</span>
-                <span class="format-badge">MP4</span>
+            <!-- 720p HD -->
+            <div class="res-item-row" data-quality="720" data-type="video">
+              <div class="res-left">
+                <span class="res-pill pill-720">720p</span>
+                <div class="res-info">
+                  <div class="res-headline">720p (HD Standard) <span class="format-badge-chip">MP4 Video</span></div>
+                  <div class="res-subline">Standard HD • Recommended for Mobile</div>
+                </div>
               </div>
-              <div class="format-details">
-                <span>Standard HD</span>
-                <span>Direct MP4</span>
-              </div>
+              <button type="button" class="btn-res-action table-dl-btn" data-quality="720" data-type="video">
+                <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                <span>Download 720p</span>
+              </button>
             </div>
 
-            <div class="format-card" data-quality="360p" data-type="video">
-              <div class="format-top">
-                <span class="format-quality">360p Fast</span>
-                <span class="format-badge">MP4</span>
+            <!-- 360p Fast -->
+            <div class="res-item-row" data-quality="360" data-type="video">
+              <div class="res-left">
+                <span class="res-pill pill-360">360p</span>
+                <div class="res-info">
+                  <div class="res-headline">360p (Fast / Data Saver) <span class="format-badge-chip">MP4 Video</span></div>
+                  <div class="res-subline">Fastest Download • Compact File Size</div>
+                </div>
               </div>
-              <div class="format-details">
-                <span>Mobile Fast</span>
-                <span>Direct MP4</span>
-              </div>
+              <button type="button" class="btn-res-action table-dl-btn" data-quality="360" data-type="video">
+                <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                <span>Download 360p</span>
+              </button>
             </div>
 
-            <div class="format-card" data-quality="MP3" data-type="audio">
-              <div class="format-top">
-                <span class="format-quality">Audio Only</span>
-                <span class="format-badge audio">MP3</span>
+            <!-- MP3 Audio -->
+            <div class="res-item-row audio-row" data-quality="128" data-type="audio">
+              <div class="res-left">
+                <span class="res-pill pill-mp3">MP3</span>
+                <div class="res-info">
+                  <div class="res-headline">MP3 Audio (High Quality) <span class="format-badge-chip audio">Audio 320kbps</span></div>
+                  <div class="res-subline">Studio Sound • Music / Phone Ringtone</div>
+                </div>
               </div>
-              <div class="format-details">
-                <span>Crystal Clear Audio</span>
-                <span>Direct MP3</span>
-              </div>
+              <button type="button" class="btn-res-action audio-btn table-dl-btn" data-quality="128" data-type="audio">
+                <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                <span>Download MP3</span>
+              </button>
             </div>
-          </div>
-
-          <!-- Direct Download Table (Similar to SaveFrom & Y2Mate) -->
-          <div class="quality-table-wrap">
-            <table class="quality-table">
-              <thead>
-                <tr>
-                  <th>Resolution / Quality</th>
-                  <th>Format</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody id="qualityTableBody">
-                <tr>
-                  <td>
-                    <div class="quality-title-cell">
-                      <span>1080p (Full HD)</span>
-                      <span class="quality-badge-tag hd">1080p</span>
-                    </div>
-                  </td>
-                  <td>MP4 Video</td>
-                  <td>
-                    <button type="button" class="btn-table-download table-dl-btn" data-quality="1080" data-type="video">
-                      <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                      <span>Download 1080p</span>
-                    </button>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <div class="quality-title-cell">
-                      <span>720p (HD)</span>
-                      <span class="quality-badge-tag hd">720p</span>
-                    </div>
-                  </td>
-                  <td>MP4 Video</td>
-                  <td>
-                    <button type="button" class="btn-table-download table-dl-btn" data-quality="720" data-type="video">
-                      <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                      <span>Download 720p</span>
-                    </button>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <div class="quality-title-cell">
-                      <span>360p (Fast Download)</span>
-                      <span class="quality-badge-tag">360p</span>
-                    </div>
-                  </td>
-                  <td>MP4 Video</td>
-                  <td>
-                    <button type="button" class="btn-table-download table-dl-btn" data-quality="360" data-type="video">
-                      <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                      <span>Download 360p</span>
-                    </button>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <div class="quality-title-cell">
-                      <span>MP3 Audio (High Quality)</span>
-                      <span class="quality-badge-tag audio">MP3</span>
-                    </div>
-                  </td>
-                  <td>MP3 Audio</td>
-                  <td>
-                    <button type="button" class="btn-table-download table-dl-btn" data-quality="128" data-type="audio" style="background:#0284c7;">
-                      <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-                      <span>Download MP3</span>
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
           </div>
 
           <!-- Gallery Integration Banner -->
-          <div class="gallery-notice-banner" style="margin-top:20px;">
+          <div class="gallery-notice-banner" style="margin-top:18px;">
             <div class="gallery-notice-icon">
-              <svg style="width:28px;height:28px;fill:currentColor" viewBox="0 0 24 24">
+              <svg style="width:26px;height:26px;fill:currentColor" viewBox="0 0 24 24">
                 <path d="M22 16V4c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2zm-11-4l2.03 2.71L16 11l4 5H8l3-4zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6H2z"/>
               </svg>
             </div>

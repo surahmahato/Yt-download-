@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const fetchBtn = document.getElementById('fetchBtn');
   const filterTabs = document.querySelectorAll('.filter-tab');
   const resultCard = document.getElementById('videoResultCard');
-  const formatCards = document.querySelectorAll('.format-card');
+  const resItemRows = document.querySelectorAll('.res-item-row');
   const downloadBtn = document.getElementById('downloadActionBtn');
   const progressBox = document.getElementById('progressBox');
   const progressBarFill = document.getElementById('progressBarFill');
@@ -40,9 +40,40 @@ document.addEventListener('DOMContentLoaded', () => {
   const directSaveText = document.getElementById('directSaveText');
 
   let currentPlatform = 'all';
-  let selectedFormat = '1080p';
+  let selectedFormat = '1080';
   let selectedType = 'video';
   let currentVideoData = null;
+
+  // Single Column Resolution Row Selection
+  function initResolutionRowListeners() {
+    const rows = document.querySelectorAll('.res-item-row');
+    rows.forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.table-dl-btn')) return;
+
+        rows.forEach(r => r.classList.remove('selected'));
+        row.classList.add('selected');
+        selectedFormat = row.getAttribute('data-quality') || '720';
+        selectedType = row.getAttribute('data-type') || 'video';
+
+        const label = selectedType === 'audio' 
+          ? '⚡ Save MP3 Audio to Phone Gallery' 
+          : `⚡ Save ${selectedFormat}p Video to Phone Gallery`;
+        const btnText = document.getElementById('downloadBtnText');
+        if (btnText) btnText.textContent = label;
+      });
+    });
+
+    document.querySelectorAll('.table-dl-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const quality = btn.getAttribute('data-quality') || '720';
+        const type = btn.getAttribute('data-type') || 'video';
+        downloadSpecificQuality(quality, type, btn);
+      });
+    });
+  }
+  initResolutionRowListeners();
 
   // Clipboard Paste Button
   if (pasteBtn) {
@@ -123,22 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
     currentPlatform = platform;
   }
 
-  // Format Card Selection
-  formatCards.forEach(card => {
-    card.addEventListener('click', () => {
-      formatCards.forEach(c => c.classList.remove('selected'));
-      card.classList.add('selected');
-      selectedFormat = card.getAttribute('data-quality');
-      selectedType = card.getAttribute('data-type');
-
-      const label = selectedType === 'audio' 
-        ? '⚡ Save MP3 Audio to Phone Gallery' 
-        : `⚡ Save ${selectedFormat} Video to Phone Gallery`;
-      const btnText = document.getElementById('downloadBtnText');
-      if (btnText) btnText.textContent = label;
-    });
-  });
-
   // Fetch Button Click
   fetchBtn.addEventListener('click', () => {
     const url = urlInput.value.trim();
@@ -208,7 +223,11 @@ document.addEventListener('DOMContentLoaded', () => {
           if (analyzeData.thumbnail) thumbUrl = analyzeData.thumbnail;
           if (analyzeData.duration) duration = analyzeData.duration;
           if (analyzeData.id) {
-            ytInfo.id = analyzeData.id;
+            if (!ytInfo) {
+              ytInfo = { id: analyzeData.id, isShort: false };
+            } else {
+              ytInfo.id = analyzeData.id;
+            }
           }
         }
       }
@@ -326,54 +345,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (data && data.success && data.downloadUrl) {
         currentVideoData.resolvedUrl = data.downloadUrl;
-        currentVideoData.resolvedFilename = data.filename;
+        currentVideoData.resolvedFilename = data.filename || `video_${quality}p.${type === 'audio' ? 'mp3' : 'mp4'}`;
 
-        // Auto trigger browser download to Phone Downloads & Gallery
-        triggerBrowserDownload(data.downloadUrl, data.filename);
-        showSuccessCard(data.filename, data.downloadUrl, type);
+        const isGateway = data.isGateway || data.downloadUrl.includes('ssyoutube') || data.downloadUrl.includes('savefrom');
+        const finalDownloadUrl = isGateway
+          ? data.downloadUrl
+          : `/api/download?url=${encodeURIComponent(data.downloadUrl)}&filename=${encodeURIComponent(currentVideoData.resolvedFilename)}`;
+
+        // Auto trigger browser download directly into Downloads folder / Gallery
+        triggerBrowserDownload(finalDownloadUrl, currentVideoData.resolvedFilename);
+        showSuccessCard(currentVideoData.resolvedFilename, finalDownloadUrl, type);
 
         triggerBtn.innerHTML = `<span>✓ Download Started!</span>`;
       } else {
         // Fallback to verified direct stream
-        if (currentVideoData.ytInfo && currentVideoData.ytInfo.id) {
-          const fallbackUrl = `https://en.ssyoutube.com/watch?v=${currentVideoData.ytInfo.id}`;
-          window.open(fallbackUrl, '_blank');
-          showSuccessCard(`${currentVideoData.title}_${quality}p.mp4`, fallbackUrl, type);
-        }
-        triggerBtn.innerHTML = `<span>✓ Downloaded</span>`;
+        const fallbackUrl = currentVideoData.ytInfo && currentVideoData.ytInfo.id
+          ? `https://en.ssyoutube.com/watch?v=${currentVideoData.ytInfo.id}`
+          : `https://en.savefrom.net/398/#url=${encodeURIComponent(currentVideoData.url)}`;
+        window.open(fallbackUrl, '_blank');
+        showSuccessCard(`${currentVideoData.title}_${quality}p.mp4`, fallbackUrl, type);
+        triggerBtn.innerHTML = `<span>✓ Direct Link Ready</span>`;
       }
     } catch (err) {
       console.error('Download error:', err);
       clearInterval(progressInterval);
-      if (currentVideoData.ytInfo && currentVideoData.ytInfo.id) {
-        const fallbackUrl = `https://en.ssyoutube.com/watch?v=${currentVideoData.ytInfo.id}`;
-        window.open(fallbackUrl, '_blank');
-      }
+      const fallbackUrl = currentVideoData.ytInfo && currentVideoData.ytInfo.id
+        ? `https://en.ssyoutube.com/watch?v=${currentVideoData.ytInfo.id}`
+        : `https://en.savefrom.net/398/#url=${encodeURIComponent(currentVideoData.url)}`;
+      window.open(fallbackUrl, '_blank');
+      showSuccessCard(`${currentVideoData.title || 'video'}_${quality}p.mp4`, fallbackUrl, type);
     } finally {
       setTimeout(() => {
         triggerBtn.disabled = false;
         triggerBtn.innerHTML = originalBtnHtml;
         progressBox.style.display = 'none';
-      }, 2000);
+      }, 2500);
     }
   }
 
-  // Trigger Native Phone Browser File Download
+  // Trigger Native Phone Browser File Download directly into device Gallery & Downloads
   function triggerBrowserDownload(fileUrl, filename) {
+    const isDirectProxy = fileUrl.startsWith('/api/download') || fileUrl.startsWith('/api/proxy-download');
+
+    // 1. Create invisible anchor with download attribute
     const link = document.createElement('a');
     link.href = fileUrl;
     link.setAttribute('download', filename);
-    link.target = '_blank';
-    link.rel = 'noopener';
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
+
+    // 2. Also navigate window location to the proxy download if not gateway
+    if (isDirectProxy) {
+      setTimeout(() => {
+        window.location.href = fileUrl;
+      }, 200);
+    }
 
     setTimeout(() => {
       if (document.body.contains(link)) {
         document.body.removeChild(link);
       }
-    }, 1000);
+    }, 1500);
   }
 
   // Display Success Card with direct file link
