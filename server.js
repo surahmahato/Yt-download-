@@ -300,6 +300,34 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // API: Direct APK Download route with attachment headers
+  if (reqPath === '/download-apk' || reqPath === '/api/download-apk' || reqPath === '/YT_Download.apk') {
+    const candidatePaths = [
+      path.join(PUBLIC_DIR, 'YT_Download.apk'),
+      path.join(__dirname, '.build-outputs', 'app-debug.apk'),
+      path.join(__dirname, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk')
+    ];
+
+    let apkPath = candidatePaths.find(p => fs.existsSync(p));
+
+    if (!apkPath) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('APK file not found on server.');
+      return;
+    }
+
+    const stat = fs.statSync(apkPath);
+    res.writeHead(200, {
+      'Content-Type': 'application/vnd.android.package-archive',
+      'Content-Length': stat.size,
+      'Content-Disposition': 'attachment; filename="YT_Download.apk"',
+      'Cache-Control': 'public, max-age=86400',
+      'Access-Control-Allow-Origin': '*'
+    });
+    fs.createReadStream(apkPath).pipe(res);
+    return;
+  }
+
   // API: Analyze Video - Returns real title, thumb, duration, and list of available format downloads
   if (reqPath === '/api/analyze') {
     const videoUrl = parsedUrl.query.url;

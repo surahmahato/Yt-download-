@@ -683,12 +683,69 @@ document.addEventListener('DOMContentLoaded', () => {
     infoModalBackdrop.addEventListener('click', closeInfoModal);
   }
 
-  // Support URL hash navigation (#terms, #privacy, #contact)
+  // APK Download Modal Controls
+  const apkDownloadModal = document.getElementById('apkDownloadModal');
+  const apkModalBackdrop = document.getElementById('apkModalBackdrop');
+  const closeApkModalBtn = document.getElementById('closeApkModalBtn');
+  const headerDownloadApkBtn = document.getElementById('headerDownloadApkBtn');
+  const footerDownloadApkBtn = document.getElementById('footerDownloadApkBtn');
+  const directDownloadApkLink = document.getElementById('directDownloadApkLink');
+
+  function openApkModal() {
+    if (apkDownloadModal) {
+      apkDownloadModal.style.display = 'flex';
+    }
+  }
+
+  function closeApkModal() {
+    if (apkDownloadModal) {
+      apkDownloadModal.style.display = 'none';
+    }
+  }
+
+  if (headerDownloadApkBtn) {
+    headerDownloadApkBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      openApkModal();
+    });
+  }
+
+  if (footerDownloadApkBtn) {
+    footerDownloadApkBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      openApkModal();
+    });
+  }
+
+  if (closeApkModalBtn) {
+    closeApkModalBtn.addEventListener('click', closeApkModal);
+  }
+
+  if (apkModalBackdrop) {
+    apkModalBackdrop.addEventListener('click', closeApkModal);
+  }
+
+  if (directDownloadApkLink) {
+    directDownloadApkLink.addEventListener('click', () => {
+      // Provide immediate visual feedback when download starts
+      const originalTitle = directDownloadApkLink.querySelector('.apk-dl-btn-title');
+      if (originalTitle) {
+        const text = originalTitle.textContent;
+        originalTitle.textContent = '✓ Downloading APK File...';
+        setTimeout(() => {
+          originalTitle.textContent = text;
+        }, 4000);
+      }
+    });
+  }
+
+  // Support URL hash navigation (#terms, #privacy, #contact, #apk-download)
   function checkHashNavigation() {
     const hash = window.location.hash.replace('#', '').toLowerCase();
     if (hash === 'terms') openInfoModal('terms');
     else if (hash === 'privacy') openInfoModal('privacy');
     else if (hash === 'contact') openInfoModal('contact');
+    else if (hash === 'apk-download' || hash === 'download-apk' || hash === 'apk') openApkModal();
   }
 
   window.addEventListener('hashchange', checkHashNavigation);
