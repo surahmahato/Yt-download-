@@ -1,8 +1,8 @@
 package com.example.ui.screens
 
-import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
@@ -40,7 +42,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -60,124 +61,126 @@ fun GalleryScreen(
     onNavigateToDownloader: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val galleryVideos by viewModel.galleryVideos.collectAsStateWithLifecycle()
+    val savedVideos by viewModel.savedVideos.collectAsStateWithLifecycle()
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .testTag("gallery_screen")
     ) {
-        // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // Phone Gallery Sync Banner
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp)
+                .testTag("gallery_sync_card"),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         ) {
-            Column {
-                Text(
-                    text = "Phone Gallery",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "${galleryVideos.size} videos indexed in Movies/YT_Download",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.tertiary)
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.PhotoLibrary,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Phone Media Storage",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Location: Movies/YT_Download",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = { viewModel.openPhoneGalleryApp() },
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.testTag("open_system_gallery_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.OpenInNew,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Native MediaStore",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.tertiary,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Text("System Gallery", fontSize = 12.sp)
                 }
-            }
-
-            OutlinedButton(
-                onClick = { viewModel.openPhoneGalleryApp() },
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                modifier = Modifier.testTag("open_phone_gallery_app_button")
-            ) {
-                Icon(imageVector = Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Open Gallery App")
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        if (galleryVideos.isEmpty()) {
+        if (savedVideos.isEmpty()) {
             // Empty State
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .testTag("gallery_empty_state"),
+                    .testTag("empty_gallery_box"),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(24.dp)
+                    modifier = Modifier.padding(32.dp)
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         modifier = Modifier.size(80.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.VideoLibrary,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(36.dp)
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(40.dp)
                             )
                         }
                     }
-
                     Spacer(modifier = Modifier.height(16.dp))
-
                     Text(
                         text = "No Videos Downloaded Yet",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Videos you download will be saved directly into your device's photo gallery and listed here.",
+                        text = "Videos and music you download from YouTube, TikTok, or Instagram will automatically appear here and in your phone gallery.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
-
                     Spacer(modifier = Modifier.height(20.dp))
-
                     Button(
                         onClick = onNavigateToDownloader,
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        modifier = Modifier.testTag("go_to_downloader_button")
+                        modifier = Modifier.testTag("download_first_video_button")
                     ) {
                         Icon(imageVector = Icons.Default.Download, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
@@ -189,31 +192,21 @@ fun GalleryScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .testTag("gallery_video_list"),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .testTag("saved_videos_list"),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(galleryVideos, key = { it.id }) { video ->
-                    GalleryVideoCard(
+                items(savedVideos, key = { it.id }) { video ->
+                    VideoItemCard(
                         video = video,
                         onPlay = { viewModel.playVideo(video) },
-                        onOpenInGallery = { viewModel.openInPhoneGallery(video) },
-                        onShare = {
-                            val uri = video.galleryUriString?.let { Uri.parse(it) }
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "video/*"
-                                if (uri != null) {
-                                    putExtra(Intent.EXTRA_STREAM, uri)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                putExtra(Intent.EXTRA_TEXT, "Shared from YT Download: ${video.title}")
-                            }
-                            context.startActivity(Intent.createChooser(shareIntent, "Share Video"))
+                        onOpenGallery = {
+                            video.galleryUriString?.let { uriStr ->
+                                viewModel.openInPhoneGallery(Uri.parse(uriStr))
+                            } ?: viewModel.openPhoneGalleryApp()
                         },
+                        onShare = { viewModel.shareVideo(video) },
                         onDelete = { viewModel.deleteVideo(video) }
                     )
-                }
-                item {
-                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
         }
@@ -221,44 +214,49 @@ fun GalleryScreen(
 }
 
 @Composable
-fun GalleryVideoCard(
+private fun VideoItemCard(
     video: VideoEntity,
     onPlay: () -> Unit,
-    onOpenInGallery: () -> Unit,
+    onOpenGallery: () -> Unit,
     onShare: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier
+    onDelete: () -> Unit
 ) {
-    val dateFormatted = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(video.createdAt))
-    val sizeMb = String.format(Locale.getDefault(), "%.1f MB", video.fileSizeBytes / (1024f * 1024f))
+    val formattedDate = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(video.createdAt))
+    val sizeMb = if (video.fileSizeBytes > 0) {
+        String.format(Locale.getDefault(), "%.1f MB", video.fileSizeBytes / (1024.0 * 1024.0))
+    } else {
+        video.quality
+    }
 
     Card(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .testTag("gallery_item_${video.id}"),
-        shape = RoundedCornerShape(16.dp),
+            .testTag("video_item_${video.id}"),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = CardDefaults.outlinedCardBorder()
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Video thumbnail/icon Box
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(54.dp)
+                // Play Icon Box
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .clickable { onPlay() }
+                        .testTag("play_video_${video.id}"),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Play",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(30.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Play Video",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -272,97 +270,76 @@ fun GalleryVideoCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Surface(
                             shape = RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant
+                            color = MaterialTheme.colorScheme.secondaryContainer
                         ) {
                             Text(
                                 text = video.platform,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = video.quality,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = sizeMb,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Text(
+                            text = "• $formattedDate",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-
-                    Text(
-                        text = "Saved $dateFormatted • In Gallery",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        fontSize = 11.sp
-                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Action Buttons
+            // Action Buttons Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(
-                    onClick = onPlay,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("play_video_button_${video.id}")
+                IconButton(
+                    onClick = onOpenGallery,
+                    modifier = Modifier.size(36.dp).testTag("action_gallery_${video.id}")
                 ) {
-                    Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(15.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Play", fontSize = 13.sp)
+                    Icon(
+                        imageVector = Icons.Default.OpenInNew,
+                        contentDescription = "Open in Gallery",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
-
-                OutlinedButton(
-                    onClick = onOpenInGallery,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
-                    modifier = Modifier
-                        .weight(1.3f)
-                        .testTag("open_gallery_button_${video.id}")
-                ) {
-                    Icon(imageVector = Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(15.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("In Gallery", fontSize = 13.sp)
-                }
-
-                OutlinedButton(
+                IconButton(
                     onClick = onShare,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
-                    modifier = Modifier
-                        .weight(0.9f)
-                        .testTag("share_video_button_${video.id}")
+                    modifier = Modifier.size(36.dp).testTag("action_share_${video.id}")
                 ) {
-                    Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(15.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Share", fontSize = 13.sp)
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Share",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
-
                 IconButton(
                     onClick = onDelete,
-                    modifier = Modifier.testTag("delete_video_button_${video.id}")
+                    modifier = Modifier.size(36.dp).testTag("action_delete_${video.id}")
                 ) {
-                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
         }

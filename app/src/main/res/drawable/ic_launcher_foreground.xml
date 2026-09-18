@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:width="66dp"
-        android:height="66dp"
-        android:drawable="@drawable/ic_app_logo"
-        android:gravity="center" />
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Center circular plate -->
+    <path
+        android:fillColor="#FF2A4B"
+        android:pathData="M54,24 C70.57,24 84,37.43 84,54 C84,70.57 70.57,84 54,84 C37.43,84 24,70.57 24,54 C24,37.43 37.43,24 54,24 Z" />
+    <!-- White Download Arrow and tray -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,64 L42,52 L46.24,47.76 L51,52.52 L51,36 L57,36 L57,52.52 L61.76,47.76 L66,52 Z M40,68 L68,68 L68,72 L40,72 Z" />
+</vector>

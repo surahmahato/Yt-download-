@@ -15,7 +15,7 @@
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://render.com/">
+  <meta property="og:url" content="https://ytdownload-ti50.onrender.com/">
   <meta property="og:title" content="YT Download - Free YouTube, TikTok & Instagram Video Downloader">
   <meta property="og:description" content="Save online videos directly to your phone gallery in HD 1080p, 720p, or MP3 audio. Free, secure, and fast.">
   <meta property="og:image" content="https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=1200&auto=format&fit=crop&q=80">
@@ -72,10 +72,11 @@
           <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
           Instagram
         </span>
-        <a href=".build-outputs/app-debug.apk" class="btn-apk-header" download="YT_Download.apk" title="Download Android App APK">
-          <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-          Get Android App
-        </a>
+        <button type="button" id="headerDownloadApkBtn" class="btn-apk-header" title="Download Android App APK">
+          <svg class="apk-icon-svg" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+          <span class="apk-btn-text">Download App</span>
+          <span class="apk-badge-pill">APK</span>
+        </button>
       </div>
     </div>
   </header>
@@ -118,9 +119,9 @@
         <!-- Quick Sample Link Pills -->
         <div class="quick-samples">
           <span>Try sample:</span>
-          <button class="sample-pill" data-url="https://www.youtube.com/watch?v=sample_video">YT Video (4K/1080p)</button>
-          <button class="sample-pill" data-url="https://www.tiktok.com/@creator/video/sample_clip">TikTok (No Watermark)</button>
-          <button class="sample-pill" data-url="https://www.instagram.com/reel/sample_reels/">Instagram Reel</button>
+          <button class="sample-pill" data-url="https://www.youtube.com/watch?v=vUoU0ICQARI">YT Video (1080p/HD)</button>
+          <button class="sample-pill" data-url="https://www.youtube.com/watch?v=jNQXAC9IVRw">Classic (Short)</button>
+          <button class="sample-pill" data-url="https://www.youtube.com/shorts/k73W5qW5j60">Shorts (1080p)</button>
         </div>
       </div>
 
@@ -128,7 +129,7 @@
       <div id="videoResultCard" class="video-result-card">
         <div class="video-info-header">
           <div class="thumbnail-box">
-            <img id="videoThumb" src="" alt="Video Thumbnail">
+            <img id="videoThumb" src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80" alt="Video Thumbnail">
             <span id="videoDuration" class="thumb-duration">03:45</span>
           </div>
           <div class="video-details">
@@ -138,6 +139,10 @@
               <span id="videoPlatformBadge" class="platform-pill youtube">YouTube</span>
               <span id="videoViews">1.2M views</span>
             </div>
+            <button type="button" id="headerWatchBtn" class="watch-preview-btn">
+              <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <span>Play &amp; Watch Video</span>
+            </button>
           </div>
         </div>
 
@@ -147,7 +152,7 @@
           
           <div class="resolution-single-column" id="resolutionSingleColumn">
             <!-- 1080p Full HD -->
-            <div class="res-item-row selected" data-quality="1080" data-type="video">
+            <div class="res-item-row" data-quality="1080" data-type="video">
               <div class="res-left">
                 <span class="res-pill pill-1080">1080p</span>
                 <div class="res-info">
@@ -208,14 +213,14 @@
           </div>
 
           <!-- Gallery Integration Banner -->
-          <div class="gallery-notice-banner">
+          <div class="gallery-notice-banner" style="margin-top:18px;">
             <div class="gallery-notice-icon">
-              <svg style="width:28px;height:28px;fill:currentColor" viewBox="0 0 24 24">
+              <svg style="width:26px;height:26px;fill:currentColor" viewBox="0 0 24 24">
                 <path d="M22 16V4c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2zm-11-4l2.03 2.71L16 11l4 5H8l3-4zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6H2z"/>
               </svg>
             </div>
             <div class="gallery-notice-text">
-              <h4>Direct Device & Phone Gallery Integration</h4>
+              <h4>Direct Device &amp; Phone Gallery Integration</h4>
               <p>Downloads are saved in full playable MP4/MP3 format into your phone's <strong>Downloads</strong> folder and instantly appear in your <strong>Gallery / Google Photos / Mi Video</strong>.</p>
             </div>
           </div>
@@ -226,10 +231,10 @@
               <svg style="width:22px;height:22px;fill:currentColor" viewBox="0 0 24 24">
                 <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
               </svg>
-              <span id="downloadBtnText">⚡ Download Directly to Phone Gallery</span>
+              <span id="downloadBtnText">⚡ Download Selected Format to Phone Gallery</span>
             </button>
             <div class="auto-download-notice">
-              <span>⚡ 1-Click Instant Save: Downloads directly to your phone's <strong>Download</strong> folder and immediately appears in your <strong>Phone Gallery</strong> without popup prompts.</span>
+              <span>⚡ 1-Click Instant Save: Downloads directly into your phone's <strong>Downloads</strong> folder and immediately appears in your <strong>Phone Gallery</strong>.</span>
             </div>
           </div>
 
@@ -268,6 +273,10 @@
             </div>
 
             <div class="success-actions">
+              <a id="directSaveFileBtn" class="btn-primary-preview" href="#" download="" style="text-decoration:none;display:none;align-items:center;justify-content:center;gap:8px;background:#10b981;">
+                <svg style="width:18px;height:18px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                <span id="directSaveText">Save MP4 File</span>
+              </a>
               <button id="openVideoBtn" class="btn-primary-preview">
                 <svg style="width:18px;height:18px;fill:currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 <span>Play &amp; Watch Video</span>
@@ -400,10 +409,11 @@
         </div>
 
         <div class="footer-links">
-          <a href="#">Privacy Policy</a>
-          <a href="#">Terms of Service</a>
-          <a href="#">Contact Us</a>
-          <a href=".build-outputs/app-debug.apk" download="YT_Download.apk">Download Android APK</a>
+          <a href="#privacy" id="privacyPolicyLink">Privacy Policy</a>
+          <a href="#terms" id="termsConditionsLink">Terms & Conditions</a>
+          <a href="#contact" id="contactUsLink">Contact Us</a>
+          <a href="mailto:xinghsuraj733@gmail.com" title="Direct Email Support">xinghsuraj733@gmail.com</a>
+          <a href="#apk-download" id="footerDownloadApkBtn" title="Download Official Android App">Download Android APK</a>
         </div>
       </div>
 
@@ -412,6 +422,127 @@
       </div>
     </div>
   </footer>
+
+  <!-- Real APK App Download Modal (Identical Website UI/UX App) -->
+  <div id="apkDownloadModal" class="video-player-modal" style="display:none;" role="dialog" aria-modal="true">
+    <div class="video-modal-backdrop" id="apkModalBackdrop"></div>
+    <div class="video-modal-dialog apk-modal-dialog">
+      <div class="video-modal-header apk-modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-live-tag" style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;">● Android Native App</span>
+          <h3 style="font-size:1.25rem;font-weight:800;color:var(--text-main);margin-top:2px;">Get YT Download App</h3>
+        </div>
+        <button type="button" id="closeApkModalBtn" class="modal-close-btn" aria-label="Close Modal">&times;</button>
+      </div>
+
+      <div class="video-modal-body apk-modal-body">
+        <!-- App Presentation Hero Card -->
+        <div class="apk-hero-card">
+          <div class="apk-app-icon">
+            <svg viewBox="0 0 24 24"><path d="M10 8.64L15.27 12 10 15.36V8.64M8 5v14l11-7L8 5z"/></svg>
+          </div>
+          <div class="apk-app-details">
+            <div class="apk-app-name">YT Download <span>Android</span></div>
+            <div class="apk-app-meta">v1.0.0 &bull; 23 MB &bull; Android 8.0+ &bull; Free</div>
+            <div class="apk-app-badges">
+              <span class="apk-badge-tag verified">
+                <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                Virus-Free &amp; Verified
+              </span>
+              <span class="apk-badge-tag clean">Direct Gallery Save</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Matching Website UI/UX Experience Highlights -->
+        <div class="apk-features-box">
+          <h4 class="apk-features-title">Same Clean UI/UX Experience As The Website:</h4>
+          <div class="apk-features-grid">
+            <div class="apk-feat-item">
+              <div class="apk-feat-icon yt">
+                <svg viewBox="0 0 24 24"><path d="M10 15l5.19-3L10 9v6m11.56-7.83c.13.47.22 1.1.28 1.9.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83-.25.9-.83 1.48-1.73 1.73-.47.13-1.33.22-2.65.28-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44-.9-.25-1.48-.83-1.73-1.73-.13-.47-.22-1.1-.28-1.9-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83.25-.9.83-1.48 1.73-1.73.47-.13 1.33-.22 2.65-.28 1.3-.07 2.49-.1 3.59-.1L12 5c4.19 0 6.8.16 7.83.44.9.25 1.48.83 1.73 1.73z"/></svg>
+              </div>
+              <div class="apk-feat-text">
+                <strong>YouTube HD &amp; Shorts</strong>
+                <span>1080p, 720p, &amp; MP3 320kbps</span>
+              </div>
+            </div>
+
+            <div class="apk-feat-item">
+              <div class="apk-feat-icon tt">
+                <svg viewBox="0 0 24 24"><path d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5 2.54 2.54 0 0 1-2.55-2.5 2.56 2.56 0 0 1 2.55-2.55c.29 0 .56.05.82.13v-3.2A5.84 5.84 0 0 0 9.86 9.6 5.74 5.74 0 0 0 4.1 15.4a5.74 5.74 0 0 0 5.76 5.8 5.77 5.77 0 0 0 5.77-5.8V9.17c1.4.99 3.09 1.58 4.9 1.63v-3.2c-1.42-.02-2.78-.65-3.93-1.78z"/></svg>
+              </div>
+              <div class="apk-feat-text">
+                <strong>TikTok No-Watermark</strong>
+                <span>Instant original video &amp; audio</span>
+              </div>
+            </div>
+
+            <div class="apk-feat-item">
+              <div class="apk-feat-icon ig">
+                <svg viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069z"/></svg>
+              </div>
+              <div class="apk-feat-text">
+                <strong>Instagram Reels</strong>
+                <span>Direct gallery extraction</span>
+              </div>
+            </div>
+
+            <div class="apk-feat-item">
+              <div class="apk-feat-icon gl">
+                <svg viewBox="0 0 24 24"><path d="M22 16V4c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2zm-11-4l2.03 2.71L16 11l4 5H8l3-4zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6H2z"/></svg>
+              </div>
+              <div class="apk-feat-text">
+                <strong>Offline Gallery Player</strong>
+                <span>Built-in video player &amp; manager</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download Action Card with Direct APK Download Button -->
+        <div class="apk-action-section">
+          <a href="/download-apk" id="directDownloadApkLink" class="apk-primary-download-btn" download="YT_Download.apk">
+            <svg class="apk-dl-icon" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+            <div class="apk-dl-btn-content">
+              <span class="apk-dl-btn-title">Download YT_Download.apk</span>
+              <span class="apk-dl-btn-sub">Direct APK File &bull; Fast Download (23 MB)</span>
+            </div>
+          </a>
+
+          <div class="apk-install-steps">
+            <span class="steps-heading">How to Install on Android:</span>
+            <ol>
+              <li>Tap <strong>Download YT_Download.apk</strong> above.</li>
+              <li>When prompted by Android Chrome/Browser, select <strong>Download anyway</strong>.</li>
+              <li>Tap the downloaded notification or open <strong>Downloads</strong> &rarr; tap <strong>Install</strong>.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legal & Info Modal (Terms, Privacy Policy, Contact) -->
+  <div id="infoModal" class="video-player-modal" style="display:none;" role="dialog" aria-modal="true">
+    <div class="video-modal-backdrop" id="infoModalBackdrop"></div>
+    <div class="video-modal-dialog" style="max-width: 680px; max-height: 85vh; overflow-y: auto;">
+      <div class="video-modal-header" style="position: sticky; top: 0; background: #ffffff; z-index: 10; border-bottom: 1px solid var(--border-color); padding: 16px 20px;">
+        <div class="modal-title-wrap">
+          <h3 id="infoModalTitle" style="font-size: 1.2rem; font-weight: 700; color: var(--text-main);">Information</h3>
+        </div>
+        <button type="button" id="closeInfoModalBtn" class="modal-close-btn" aria-label="Close Modal">&times;</button>
+      </div>
+
+      <div class="video-modal-body" id="infoModalBody" style="padding: 24px; color: var(--text-main); font-size: 0.95rem; line-height: 1.7;">
+        <!-- Injected via JavaScript based on link clicked -->
+      </div>
+
+      <div class="video-modal-footer" style="position: sticky; bottom: 0; background: #f8fafc; border-top: 1px solid var(--border-color); padding: 14px 20px; display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" id="infoModalCloseActionBtn" class="btn-secondary" style="padding: 8px 20px;">Close</button>
+      </div>
+    </div>
+  </div>
 
   <!-- In-Browser Video Player Modal -->
   <div id="videoPlayerModal" class="video-player-modal" style="display:none;">
@@ -426,15 +557,16 @@
       </div>
 
       <div class="video-modal-body">
-        <div class="modal-video-container">
-          <video id="modalVideoElement" controls playsinline preload="metadata">
+        <div class="modal-video-container" id="modalVideoContainer">
+          <iframe id="modalYoutubeIframe" src="" style="width:100%;height:320px;border:none;border-radius:8px;display:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+          <video id="modalVideoElement" controls playsinline preload="metadata" style="display:none;width:100%;max-height:480px;">
             <source id="modalVideoSource" src="" type="video/mp4">
             Your browser does not support HTML5 video playback.
           </video>
         </div>
         <div class="modal-video-meta">
           <span id="modalDurationBadge" class="duration-badge">⏱ Duration: Ready</span>
-          <span class="gallery-badge">📱 100% Phone Gallery Compatible</span>
+          <span class="gallery-badge">📱 100% Exact Video Stream</span>
         </div>
       </div>
 

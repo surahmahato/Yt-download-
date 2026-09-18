@@ -18,4 +18,13 @@ class ExampleRobolectricTest {
     val appName = context.getString(R.string.app_name)
     assertEquals("YT Download", appName)
   }
+
+  @Test
+  fun `verify url analyzer identifies youtube url`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val manager = com.example.data.network.VideoDownloadManager(context)
+    val metadata = manager.analyzeUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    org.junit.Assert.assertNotNull(metadata)
+    assertEquals("YouTube", metadata?.platform)
+  }
 }
