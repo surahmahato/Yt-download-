@@ -2,58 +2,765 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   <title>Recent News from Google - Daily Automatic Updates | YT Download</title>
-  <meta name="description" content="Stay up to date with recent headlines from Google News. Daily automatic updates across top stories, technology, business, world news, and entertainment.">
-  <link rel="stylesheet" href="styles.css">
+  <meta name="description" content="Stay up to date with recent headlines from Google News. Daily automatic updates across top stories, technology, business, world news, and entertainment with related images.">
+  <link rel="stylesheet" href="/styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    /* Page specific refinements */
-    .news-nav-active {
-      background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
-      color: #ffffff !important;
-      box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.4) !important;
+    /* Complete Responsive Layout Fitting All Screen Sizes */
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      overflow-x: hidden;
+      width: 100%;
+    }
+
+    /* Constrained header elements to prevent SVG explosion */
+    .header {
+      background: #ffffff;
+      border-bottom: 1px solid #e2e8f0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      width: 100%;
+    }
+
+    .header-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .logo-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+
+    .logo-badge {
+      width: 34px;
+      height: 34px;
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+      flex-shrink: 0;
+    }
+
+    .logo-text {
+      font-size: 1.18rem;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span {
+      color: #ef4444;
+    }
+
+    .header-badges {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-nav-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 10px;
+      font-size: 0.84rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-nav-downloader {
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+
+    .btn-nav-downloader:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    .btn-nav-news-active {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn-nav-apk {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-nav-apk:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+
+    /* News Page Container - Strict Mobile-Fit */
+    .news-page-container {
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px 16px 60px 16px;
+      box-sizing: border-box;
+      overflow-x: hidden;
+    }
+
+    .news-hero-section {
+      text-align: center;
+      margin-bottom: 24px;
+      width: 100%;
+    }
+
+    .news-live-ribbon {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      padding: 5px 14px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      max-width: 100%;
+    }
+
+    .news-live-dot {
+      width: 8px;
+      height: 8px;
+      background: #2563eb;
+      border-radius: 50%;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+      animation: pulse 1.8s infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .news-hero-title {
+      font-size: 2.1rem;
+      font-weight: 900;
+      color: #0f172a;
+      letter-spacing: -0.8px;
+      margin: 0 0 8px 0;
+      line-height: 1.2;
+    }
+
+    .news-hero-title span {
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .news-hero-subtitle {
+      font-size: 0.96rem;
+      color: #64748b;
+      max-width: 620px;
+      margin: 0 auto 16px auto;
+      line-height: 1.5;
+    }
+
+    .news-sync-meta {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .news-sync-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      color: #64748b;
+      font-weight: 600;
+      background: #ffffff;
+      padding: 5px 12px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .btn-news-refresh {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: #2563eb;
+      padding: 5px 12px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-news-refresh:hover {
+      background: #eff6ff;
+      border-color: #93c5fd;
+    }
+
+    .btn-news-refresh.spinning svg {
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Controls Bar (Filter + Search) */
+    .news-controls-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .news-categories-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid #f1f5f9;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+
+    .news-categories-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .news-cat-pill {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+      font-size: 0.83rem;
+      font-weight: 700;
+      padding: 7px 15px;
+      border-radius: 9999px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .news-cat-pill:hover {
+      background: #eff6ff;
+      color: #2563eb;
+      border-color: #bfdbfe;
+    }
+
+    .news-cat-pill.active {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #2563eb;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+    }
+
+    .news-search-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .news-search-box {
+      position: relative;
+      flex-grow: 1;
+      width: 100%;
+    }
+
+    .news-search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      fill: #94a3b8;
+      pointer-events: none;
+    }
+
+    .news-search-input {
+      width: 100%;
+      padding: 10px 14px 10px 42px;
+      border-radius: 12px;
+      border: 1px solid #cbd5e1;
+      font-size: 0.9rem;
+      color: #1e293b;
+      background: #f8fafc;
+      outline: none;
+      transition: all 0.2s;
+      box-sizing: border-box;
+    }
+
+    .news-search-input:focus {
+      border-color: #2563eb;
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .news-results-count {
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: #64748b;
+      white-space: nowrap;
+    }
+
+    /* News Cards Grid - Completely Responsive & Screen-Fitted */
+    .news-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px;
+      margin-bottom: 36px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .news-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .news-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 24px rgba(37, 99, 235, 0.12);
+      border-color: #93c5fd;
+    }
+
+    /* Related News Image Component */
+    .news-card-media {
+      position: relative;
+      width: 100%;
+      height: 180px;
+      background: #e2e8f0;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .news-card-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.35s ease;
+    }
+
+    .news-card:hover .news-card-img {
+      transform: scale(1.04);
+    }
+
+    .news-card-category-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: #ffffff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+
+    .news-card-body {
+      padding: 16px 16px 12px 16px;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+    }
+
+    .news-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .news-card-source-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 65%;
+      overflow: hidden;
+    }
+
+    .news-source-favicon {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .news-card-source {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #2563eb;
+      background: #eff6ff;
+      border: 1px solid #dbeafe;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .news-card-time {
+      font-size: 0.74rem;
+      color: #94a3b8;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .news-card-title {
+      font-size: 1.02rem;
+      font-weight: 700;
+      line-height: 1.4;
+      color: #0f172a;
+      margin: 0 0 8px 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .news-card-title a {
+      color: inherit;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .news-card-title a:hover {
+      color: #2563eb;
+    }
+
+    .news-card-snippet {
+      font-size: 0.86rem;
+      color: #64748b;
+      line-height: 1.5;
+      margin: 0 0 8px 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .news-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid #f1f5f9;
+      padding: 12px 16px 14px 16px;
+      margin-top: auto;
+      background: #ffffff;
+    }
+
+    .news-read-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #2563eb;
+      text-decoration: none;
+      transition: gap 0.2s, color 0.2s;
+    }
+
+    .news-read-btn:hover {
+      color: #1d4ed8;
+      gap: 9px;
+    }
+
+    .news-share-btn {
+      background: transparent;
+      border: 1px solid #e2e8f0;
+      color: #64748b;
+      border-radius: 8px;
+      padding: 5px 9px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s;
+    }
+
+    .news-share-btn:hover {
+      background: #f8fafc;
+      color: #1e293b;
+      border-color: #cbd5e1;
+    }
+
+    /* Empty or Loading States */
+    .news-empty-state {
+      text-align: center;
+      padding: 50px 20px;
+      background: #ffffff;
+      border: 1px dashed #cbd5e1;
+      border-radius: 16px;
+      color: #64748b;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* Bottom CTA Card to Downloader & APK */
+    .news-bottom-cta {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-radius: 20px;
+      padding: 32px 24px;
+      color: #ffffff;
+      text-align: center;
+      margin-top: 40px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .news-bottom-cta h3 {
+      font-size: 1.45rem;
+      font-weight: 800;
+      margin: 0 0 8px 0;
+    }
+
+    .news-bottom-cta p {
+      color: #94a3b8;
+      max-width: 540px;
+      margin: 0 auto 20px auto;
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    .news-cta-btns {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn-cta-downloader {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: #ffffff;
+      font-weight: 700;
+      padding: 10px 20px;
+      border-radius: 10px;
+      text-decoration: none;
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
+      transition: all 0.2s;
+    }
+
+    .btn-cta-downloader:hover {
+      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+      transform: translateY(-1px);
+    }
+
+    /* Footer */
+    .footer {
+      background: #ffffff;
+      border-top: 1px solid #e2e8f0;
+      padding: 32px 16px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a {
+      color: #64748b;
+      font-size: 0.85rem;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: #2563eb;
+    }
+
+    .disclaimer-text {
+      max-width: 1200px;
+      margin: 0 auto;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      line-height: 1.5;
+      text-align: center;
+      border-top: 1px solid #f1f5f9;
+      padding-top: 16px;
+    }
+
+    /* Responsive Breakpoints - Strict Sizing */
+    @media (max-width: 1024px) {
+      .news-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 18px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .header-container {
+        padding: 10px 12px;
+      }
+      .news-page-container {
+        padding: 16px 12px 48px 12px;
+      }
+      .news-hero-title {
+        font-size: 1.55rem;
+      }
+      .news-hero-subtitle {
+        font-size: 0.86rem;
+        margin-bottom: 12px;
+      }
+      .news-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      .news-card-media {
+        height: 190px;
+      }
+      .news-controls-card {
+        padding: 12px 10px;
+        margin-bottom: 18px;
+      }
+      .news-categories-bar {
+        gap: 6px;
+        padding-bottom: 8px;
+        margin-bottom: 10px;
+      }
+      .news-cat-pill {
+        padding: 6px 12px;
+        font-size: 0.78rem;
+      }
+      .news-search-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .news-results-count {
+        text-align: right;
+        font-size: 0.78rem;
+      }
+      .footer-content {
+        flex-direction: column;
+        align-items: flex-start;
+      }
     }
   </style>
 </head>
 <body>
-  <!-- Header matching site style with Blue News button -->
+  <!-- Header matching site style with Play Logo Badge (Clean, No Cloud Image) -->
   <header class="header">
     <div class="header-container">
-      <a href="/" class="logo-group" style="text-decoration:none;">
-        <div class="logo-icon-wrap">
-          <svg class="logo-svg" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+      <a href="/" class="logo-group">
+        <div class="logo-badge">
+          <svg style="width:18px;height:18px;fill:#ffffff;display:inline-block;" viewBox="0 0 24 24"><path d="M10 8.64L15.27 12 10 15.36V8.64M8 5v14l11-7L8 5z"/></svg>
         </div>
         <div class="logo-text">YT <span>Download</span></div>
       </a>
 
       <div class="header-badges">
         <!-- Downloader Navigation -->
-        <a href="/" class="btn-apk-header" style="background:#f1f5f9;color:#1e293b;border-color:#cbd5e1;box-shadow:none;" title="Video Downloader">
-          <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg>
+        <a href="/" class="btn-nav-action btn-nav-downloader" title="Video Downloader">
+          <svg style="width:16px;height:16px;fill:currentColor;display:inline-block;" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg>
           <span>Downloader</span>
         </a>
 
         <!-- Blue News Button (Active on this page) -->
-        <a href="/news" id="headerNewsBtn" class="btn-news-header news-nav-active" title="Google News (Updated Daily)">
-          <svg class="news-icon-svg" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
-          <span class="news-btn-text">News</span>
-          <span class="news-badge-pill">Daily</span>
+        <a href="/news" id="headerNewsBtn" class="btn-nav-action btn-nav-news-active" title="Google News (Updated Daily)">
+          <svg style="width:16px;height:16px;fill:currentColor;display:inline-block;" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+          <span>News Daily</span>
         </a>
 
         <!-- APK Download Button with direct download link -->
-        <a href="/download-apk" id="headerDownloadApkBtn" class="btn-apk-header" download="YT_Download.apk" title="Download Android App APK (18 MB)">
-          <svg class="apk-icon-svg" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-          <span class="apk-btn-text">Download App</span>
-          <span class="apk-badge-pill">APK</span>
+        <a href="/download-apk" id="headerDownloadApkBtn" class="btn-nav-action btn-nav-apk" download="YT_Download.apk" title="Download Android App APK (18 MB)">
+          <svg style="width:15px;height:15px;fill:currentColor;display:inline-block;" viewBox="0 0 24 24"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+          <span>App APK</span>
         </a>
       </div>
     </div>
   </header>
 
-  <!-- News Page Main Content -->
+  <!-- News Page Main Content Completely Fitted to Screen -->
   <main class="news-page-container">
     <section class="news-hero-section">
       <div class="news-live-ribbon">
@@ -61,15 +768,15 @@
         <span>Google News Live Feed &bull; Updated Daily Automatically</span>
       </div>
       <h1 class="news-hero-title">Recent <span>Google News</span></h1>
-      <p class="news-hero-subtitle">Explore the latest news headlines from verified global sources, refreshed automatically every day directly from Google News.</p>
+      <p class="news-hero-subtitle">Explore the latest news headlines from verified global sources with topical images, refreshed automatically every day directly from Google News.</p>
 
       <div class="news-sync-meta">
         <div class="news-sync-item">
-          <svg style="width:16px;height:16px;fill:#64748b" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+          <svg style="width:15px;height:15px;fill:#64748b;display:inline-block;" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
           <span id="newsLastUpdatedLabel">Syncing news...</span>
         </div>
         <button type="button" id="refreshNewsBtn" class="btn-news-refresh" title="Check for fresh news from Google now">
-          <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+          <svg style="width:14px;height:14px;fill:currentColor;display:inline-block;" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
           <span>Refresh Now</span>
         </button>
       </div>
@@ -96,26 +803,26 @@
 
     <!-- News Articles Grid -->
     <div class="news-cards-grid" id="newsCardsGrid">
-      <!-- Loading skeletons initially -->
-      <div class="news-card" style="min-height: 220px; justify-content: center; align-items: center; grid-column: 1 / -1;">
+      <!-- Loading skeleton initially -->
+      <div class="news-card" style="min-height: 220px; justify-content: center; align-items: center; grid-column: 1 / -1; padding: 40px 20px;">
         <div style="display:flex; flex-direction:column; align-items:center; gap:12px; color:#64748b;">
-          <svg style="width:36px;height:36px;animation:spin 1s linear infinite;fill:#2563eb;" viewBox="0 0 24 24"><path d="M12 4V2C6.48 2 2 6.48 2 12h2c0-4.41 3.59-8 8-8zm0 16c4.41 0 8-3.59 8-8h2c0 5.52-4.48 10-10 10v-2z"/></svg>
-          <span style="font-weight:600;">Fetching live Google News headlines...</span>
+          <svg style="width:36px;height:36px;animation:spin 1s linear infinite;fill:#2563eb;display:inline-block;" viewBox="0 0 24 24"><path d="M12 4V2C6.48 2 2 6.48 2 12h2c0-4.41 3.59-8 8-8zm0 16c4.41 0 8-3.59 8-8h2c0 5.52-4.48 10-10 10v-2z"/></svg>
+          <span style="font-weight:700;">Fetching live Google News headlines & related images...</span>
         </div>
       </div>
     </div>
 
-    <!-- Bottom CTA Card to Downloader & APK -->
+    <!-- Bottom CTA Card to Downloader & APK (No black downloading cloud shape) -->
     <div class="news-bottom-cta">
       <h3>Need to Download Videos or Audio?</h3>
       <p>Save full HD videos from YouTube, TikTok, and Instagram directly into your gallery with 1-click downloads.</p>
       <div class="news-cta-btns">
         <a href="/" class="btn-cta-downloader">
-          <svg style="width:18px;height:18px;fill:currentColor" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+          <svg style="width:18px;height:18px;fill:currentColor;display:inline-block;" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg>
           <span>Go to Video Downloader</span>
         </a>
-        <a href="/download-apk" download="YT_Download.apk" class="btn-apk-header" style="padding:10px 18px;font-size:0.95rem;">
-          <svg class="apk-icon-svg" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+        <a href="/download-apk" download="YT_Download.apk" class="btn-nav-action btn-nav-apk" style="padding:10px 20px;font-size:0.92rem;">
+          <svg style="width:16px;height:16px;fill:currentColor;display:inline-block;" viewBox="0 0 24 24"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
           <span>Download Android App (APK)</span>
         </a>
       </div>
@@ -124,40 +831,37 @@
 
   <!-- Footer -->
   <footer class="footer">
-    <div class="container">
-      <div class="footer-content">
-        <div class="logo-group">
-          <div class="logo-icon-wrap">
-            <svg class="logo-svg" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-          </div>
-          <div class="logo-text">YT <span>Download</span></div>
+    <div class="footer-content">
+      <a href="/" class="logo-group">
+        <div class="logo-badge">
+          <svg style="width:18px;height:18px;fill:#ffffff;display:inline-block;" viewBox="0 0 24 24"><path d="M10 8.64L15.27 12 10 15.36V8.64M8 5v14l11-7L8 5z"/></svg>
         </div>
+        <div class="logo-text">YT <span>Download</span></div>
+      </a>
 
-        <div class="footer-links">
-          <a href="/">Video Downloader</a>
-          <a href="/news" style="color:#2563eb;font-weight:700;">Google News</a>
-          <a href="/download-apk" download="YT_Download.apk">Download APK</a>
-          <a href="/#privacy">Privacy Policy</a>
-          <a href="/#terms">Terms of Service</a>
-          <a href="mailto:xinghsuraj733@gmail.com">Contact Support</a>
-        </div>
+      <div class="footer-links">
+        <a href="/">Video Downloader</a>
+        <a href="/news" style="color:#2563eb;font-weight:700;">Google News</a>
+        <a href="/download-apk" download="YT_Download.apk">Download APK</a>
+        <a href="/#privacy">Privacy Policy</a>
+        <a href="/#terms">Terms of Service</a>
+        <a href="mailto:xinghsuraj733@gmail.com">Contact Support</a>
       </div>
+    </div>
 
-      <div class="disclaimer-text">
-        Disclaimer: News content is aggregated directly from Google News RSS feeds for informational purposes. All headlines, snippets, and trademarks belong to their respective publishers and news organizations.
-      </div>
+    <div class="disclaimer-text">
+      Disclaimer: News content is aggregated directly from Google News RSS feeds for informational purposes. All headlines, snippets, and trademarks belong to their respective publishers and news organizations.
     </div>
   </footer>
 
   <!-- Toast Notification Container -->
-  <div id="toastNotification" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f172a;color:#ffffff;padding:12px 24px;border-radius:12px;font-size:0.9rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.3);z-index:9999;display:none;transition:opacity 0.2s;border:1px solid rgba(255,255,255,0.15);"></div>
+  <div id="toastNotification" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f172a;color:#ffffff;padding:12px 24px;border-radius:12px;font-size:0.9rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.3);z-index:9999;display:none;transition:opacity 0.2s;border:1px solid rgba(255,255,255,0.15);pointer-events:none;"></div>
 
   <!-- News Page Client Logic -->
   <script>
     (function() {
       let currentCategory = 'all';
       let allArticles = [];
-      let lastUpdatedTime = null;
 
       const grid = document.getElementById('newsCardsGrid');
       const resultsCount = document.getElementById('newsResultsCount');
@@ -184,13 +888,22 @@
         return text.replace(/[&<>"']/g, m => map[m]);
       }
 
+      // Default fallback images by category in case external image fails
+      const FALLBACK_CATEGORY_IMAGES = {
+        technology: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&auto=format&fit=crop&q=80',
+        business: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&auto=format&fit=crop&q=80',
+        entertainment: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80',
+        world: 'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=600&auto=format&fit=crop&q=80',
+        general: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&auto=format&fit=crop&q=80'
+      };
+
       function renderArticles(articles) {
         if (!articles || articles.length === 0) {
           grid.innerHTML = `
             <div class="news-empty-state" style="grid-column: 1 / -1;">
-              <svg class="news-empty-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
-              <h3 style="font-size:1.15rem;font-weight:700;color:#1e293b;margin-bottom:6px;">No matching headlines found</h3>
-              <p>Try searching with different terms or selecting another category.</p>
+              <svg style="width:44px;height:44px;fill:#94a3b8;margin:0 auto 12px auto;display:block;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+              <h3 style="font-size:1.15rem;font-weight:700;color:#1e293b;margin:0 0 6px 0;">No matching headlines found</h3>
+              <p style="margin:0;">Try searching with different keywords or selecting another category.</p>
             </div>
           `;
           resultsCount.textContent = '0 headlines';
@@ -205,14 +918,27 @@
           const safeSnippet = escapeHtml(item.snippet || item.title);
           const safeLink = encodeURI(item.link);
           const safeTime = escapeHtml(item.timeAgo || 'Recent');
+          const safeCategory = escapeHtml(item.categoryName || 'News');
+          const safeFavicon = item.sourceFavicon ? escapeHtml(item.sourceFavicon) : '';
+          
+          // Image assignment with category-based fallback
+          const fallbackImg = FALLBACK_CATEGORY_IMAGES[item.category] || FALLBACK_CATEGORY_IMAGES.general;
+          const safeImageUrl = item.imageUrl ? escapeHtml(item.imageUrl) : fallbackImg;
 
           return `
             <article class="news-card">
-              <div>
+              <div class="news-card-media">
+                <img src="${safeImageUrl}" alt="${safeTitle}" class="news-card-img" loading="lazy" onerror="this.onerror=null;this.src='${fallbackImg}';">
+                <span class="news-card-category-badge">${safeCategory}</span>
+              </div>
+              <div class="news-card-body">
                 <div class="news-card-header">
-                  <span class="news-card-source">${safeSource}</span>
+                  <div class="news-card-source-wrap">
+                    ${safeFavicon ? `<img src="${safeFavicon}" alt="" class="news-source-favicon" loading="lazy" onerror="this.style.display='none'">` : ''}
+                    <span class="news-card-source">${safeSource}</span>
+                  </div>
                   <span class="news-card-time">
-                    <svg style="width:12px;height:12px;fill:currentColor" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                    <svg style="width:12px;height:12px;fill:currentColor;display:inline-block;" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
                     ${safeTime}
                   </span>
                 </div>
@@ -224,10 +950,10 @@
               <div class="news-card-footer">
                 <a href="${safeLink}" target="_blank" rel="noopener noreferrer" class="news-read-btn">
                   <span>Read on Google News</span>
-                  <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM5 5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2v-7h-2v7H5V7h7V5H5z"/></svg>
+                  <svg style="width:14px;height:14px;fill:currentColor;display:inline-block;" viewBox="0 0 24 24"><path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM5 5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2v-7h-2v7H5V7h7V5H5z"/></svg>
                 </a>
                 <button type="button" class="news-share-btn" data-url="${safeLink}" data-title="${safeTitle}" title="Share this article">
-                  <svg style="width:13px;height:13px;fill:currentColor" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>
+                  <svg style="width:13px;height:13px;fill:currentColor;display:inline-block;" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>
                   <span>Share</span>
                 </button>
               </div>
@@ -240,7 +966,6 @@
           btn.addEventListener('click', function(e) {
             e.preventDefault();
             const shareUrl = this.getAttribute('data-url');
-            const shareTitle = this.getAttribute('data-title');
             if (navigator.clipboard) {
               navigator.clipboard.writeText(shareUrl).then(() => {
                 showToast('✓ Link copied to clipboard!');
@@ -286,16 +1011,16 @@
 
           if (data && data.success && Array.isArray(data.articles)) {
             allArticles = data.articles;
-            lastUpdatedTime = data.lastUpdated ? new Date(data.lastUpdated) : new Date();
+            const lastUpdated = data.lastUpdated ? new Date(data.lastUpdated) : new Date();
             
-            const timeStr = lastUpdatedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const dateStr = lastUpdatedTime.toLocaleDateString([], { month: 'short', day: 'numeric' });
+            const timeStr = lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateStr = lastUpdated.toLocaleDateString([], { month: 'short', day: 'numeric' });
             lastUpdatedLabel.textContent = `Updated: ${dateStr}, ${timeStr} • Daily Auto-Update`;
             
             filterAndDisplay();
 
             if (forceRefresh) {
-              showToast(`✓ Google News refreshed! ${data.totalArticles} articles loaded.`);
+              showToast(`✓ Google News refreshed with latest images! (${data.totalArticles} articles)`);
             }
           } else {
             throw new Error(data.error || 'Failed to load articles');
@@ -306,8 +1031,8 @@
           if (allArticles.length === 0) {
             grid.innerHTML = `
               <div class="news-empty-state" style="grid-column: 1 / -1;">
-                <h3 style="color:#ef4444;margin-bottom:6px;">News feed connection issue</h3>
-                <p>Please check your internet connection or tap "Refresh Now".</p>
+                <h3 style="color:#ef4444;margin:0 0 6px 0;">News feed connection issue</h3>
+                <p style="margin:0;">Please check your internet connection or tap "Refresh Now".</p>
               </div>
             `;
           }
@@ -335,14 +1060,6 @@
       refreshBtn.addEventListener('click', () => {
         fetchNews(true);
       });
-
-      // APK direct download click handler
-      const apkBtn = document.getElementById('headerDownloadApkBtn');
-      if (apkBtn) {
-        apkBtn.addEventListener('click', () => {
-          showToast('⬇️ Starting download for YT_Download.apk (18 MB)...');
-        });
-      }
 
       // Initial load
       fetchNews();

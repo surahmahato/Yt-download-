@@ -125,6 +125,129 @@ function formatRelativeTime(date) {
   return `${days}d ago`;
 }
 
+// Curated high-resolution related news images by category & topic
+const NEWS_IMAGE_POOLS = {
+  technology: [
+    'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1612287233261-26c99c855a73?w=600&auto=format&fit=crop&q=80'
+  ],
+  business: [
+    'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=600&auto=format&fit=crop&q=80'
+  ],
+  entertainment: [
+    'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?w=600&auto=format&fit=crop&q=80'
+  ],
+  world: [
+    'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1509099836639-18ba1795216d?w=600&auto=format&fit=crop&q=80'
+  ],
+  general: [
+    'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1588681664899-f142ff2dc9b1?w=600&auto=format&fit=crop&q=80'
+  ]
+};
+
+// Keyword-based and deterministic related image matcher
+function getRelatedNewsImage(title, categoryId) {
+  const t = (title || '').toLowerCase();
+
+  if (/\b(iphone|apple|ios|macbook|ipad)\b/i.test(t)) {
+    return 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&auto=format&fit=crop&q=80';
+  }
+  if (/\b(galaxy|samsung|pixel|android)\b/i.test(t)) {
+    return 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=600&auto=format&fit=crop&q=80';
+  }
+  if (/\b(nintendo|switch|playstation|ps5|xbox|gaming|gamer|games?)\b/i.test(t)) {
+    return 'https://images.unsplash.com/photo-1612287233261-26c99c855a73?w=600&auto=format&fit=crop&q=80';
+  }
+  if (/\b(ai|artificial intelligence|chatgpt|openai|gemini|robot|deep learning|machine learning)\b/i.test(t)) {
+    return 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&auto=format&fit=crop&q=80';
+  }
+  if (/\b(nvidia|chip|chips|processor|intel|amd|laptop|pc|gpu)\b/i.test(t)) {
+    return 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&auto=format&fit=crop&q=80';
+  }
+  if (/\b(war|attack|military|conflict|army|navy|missile|tank|troops|ceasefire|ships?|strait|bomb|drone)\b/i.test(t)) {
+    return 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=600&auto=format&fit=crop&q=80';
+  }
+  if (/\b(queen|king|royal|prince|princess|monarchy|diana|monarch)\b/i.test(t)) {
+    return 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&auto=format&fit=crop&q=80';
+  }
+  if (/\b(trump|biden|election|senate|congress|republican|democrat|gop|president|law|court|judge|vote)\b/i.test(t)) {
+    return 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=600&auto=format&fit=crop&q=80';
+  }
+  if (/\b(dengue|measles|virus|hospital|health|doctor|vaccine|disease|medical|nicu|cdc|fda)\b/i.test(t)) {
+    return 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?w=600&auto=format&fit=crop&q=80';
+  }
+  if (/\b(stock|stocks|market|markets|wall street|fed|inflation|crypto|bitcoin|economy|banking|finance)\b/i.test(t)) {
+    return 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&auto=format&fit=crop&q=80';
+  }
+  if (/\b(movie|movies|film|films|hollywood|cinema|oscar|trailer|actor|actress|netflix|series|hbo)\b/i.test(t)) {
+    return 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80';
+  }
+  if (/\b(music|song|songs|album|concert|band|singer|grammy|billboard|pop|rock|rap)\b/i.test(t)) {
+    return 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
+  }
+  if (/\b(football|soccer|nfl|nba|olympic|olympics|cricket|tennis|sport|sports|fifa|uefa)\b/i.test(t)) {
+    return 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=600&auto=format&fit=crop&q=80';
+  }
+  if (/\b(space|nasa|moon|mars|telescope|planet|spacex|astronaut|rocket)\b/i.test(t)) {
+    return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80';
+  }
+
+  // Consistent hash-based pool selection
+  const pool = NEWS_IMAGE_POOLS[categoryId] || NEWS_IMAGE_POOLS.general;
+  let hash = 0;
+  for (let i = 0; i < (title || '').length; i++) {
+    hash = ((hash << 5) - hash) + title.charCodeAt(i);
+    hash |= 0;
+  }
+  const idx = Math.abs(hash) % pool.length;
+  return pool[idx];
+}
+
+// Clean HTML snippet from Google News RSS description
+function cleanGoogleNewsSnippet(rawDesc, fallbackTitle) {
+  if (!rawDesc) return fallbackTitle || '';
+  
+  // Unescape HTML entities first so <ol> and <li> become actual tags to strip
+  let decoded = rawDesc
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&nbsp;/g, ' ');
+
+  // Strip all HTML markup
+  let cleanText = decoded.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // If the clean text is too short or is only a URL, use fallback title
+  if (!cleanText || cleanText.length < 15 || cleanText.startsWith('http')) {
+    return fallbackTitle || 'Read the full verified story and coverage on Google News.';
+  }
+
+  return cleanText;
+}
+
 // Helper: Parse Google News RSS Feed
 function parseGoogleNewsRss(xmlText, categoryId, categoryName) {
   const items = [];
@@ -137,19 +260,30 @@ function parseGoogleNewsRss(xmlText, categoryId, categoryName) {
     const desc = (itemXml.match(/<description>([\s\S]*?)<\/description>/i) || [])[1] || '';
     const sourceMatch = itemXml.match(/<source[^>]*url="([^"]*)"[^>]*>([\s\S]*?)<\/source>/i);
     const source = sourceMatch ? cleanHtml(sourceMatch[2]) : 'Google News';
+    const sourceUrl = sourceMatch ? sourceMatch[1] : '';
 
     title = cleanHtml(title);
     if (source && title.endsWith(` - ${source}`)) {
       title = title.substring(0, title.length - (source.length + 3)).trim();
     }
 
-    let snippet = desc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-    snippet = cleanHtml(snippet);
-    if (!snippet || snippet.length < 10) {
-      snippet = title;
+    const snippet = cleanGoogleNewsSnippet(desc, title);
+    const pubDate = pubDateStr ? new Date(pubDateStr) : new Date();
+
+    // Determine domain for publisher favicon
+    let domain = '';
+    try {
+      if (sourceUrl) {
+        domain = new URL(sourceUrl).hostname.replace(/^www\./, '');
+      } else if (link) {
+        domain = 'news.google.com';
+      }
+    } catch (e) {
+      domain = 'news.google.com';
     }
 
-    const pubDate = pubDateStr ? new Date(pubDateStr) : new Date();
+    const sourceFavicon = domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64` : '';
+    const imageUrl = getRelatedNewsImage(title, categoryId);
 
     if (title && link) {
       items.push({
@@ -157,6 +291,9 @@ function parseGoogleNewsRss(xmlText, categoryId, categoryName) {
         title,
         link: link.trim(),
         source,
+        sourceUrl,
+        sourceFavicon,
+        imageUrl,
         category: categoryId,
         categoryName,
         pubDate: pubDate.toISOString(),
@@ -251,9 +388,21 @@ function initNewsCache() {
     if (fs.existsSync(NEWS_CACHE_FILE)) {
       const saved = JSON.parse(fs.readFileSync(NEWS_CACHE_FILE, 'utf8'));
       if (saved && Array.isArray(saved.articles) && saved.articles.length > 0) {
-        newsState.articles = saved.articles;
+        newsState.articles = saved.articles.map(article => {
+          if (!article.imageUrl) {
+            article.imageUrl = getRelatedNewsImage(article.title, article.category);
+          }
+          if (!article.sourceFavicon && article.sourceUrl) {
+            try {
+              const dom = new URL(article.sourceUrl).hostname.replace(/^www\./, '');
+              article.sourceFavicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(dom)}&sz=64`;
+            } catch (e) {}
+          }
+          article.snippet = cleanGoogleNewsSnippet(article.snippet, article.title);
+          return article;
+        });
         newsState.lastUpdated = saved.lastUpdated;
-        console.log(`[Google News] Loaded ${saved.articles.length} cached articles (Updated: ${saved.lastUpdated})`);
+        console.log(`[Google News] Loaded and enriched ${saved.articles.length} cached articles with related images (Updated: ${saved.lastUpdated})`);
       }
     }
   } catch (e) {
@@ -674,11 +823,25 @@ const server = http.createServer(async (req, res) => {
         filteredArticles = newsState.articles.filter(a => a.category === queryCategory);
       }
 
-      // Recompute timeAgo dynamically relative to current request time
-      const articlesWithDynamicTime = filteredArticles.map(a => ({
-        ...a,
-        timeAgo: formatRelativeTime(new Date(a.pubDate))
-      }));
+      // Recompute timeAgo dynamically relative to current request time and guarantee imageUrl
+      const articlesWithDynamicTime = filteredArticles.map(a => {
+        let favicon = a.sourceFavicon;
+        if (!favicon && a.sourceUrl) {
+          try {
+            const host = new URL(a.sourceUrl).hostname.replace(/^www\./, '');
+            favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
+          } catch (e) {
+            favicon = 'https://www.google.com/s2/favicons?domain=news.google.com&sz=64';
+          }
+        }
+        return {
+          ...a,
+          imageUrl: a.imageUrl || getRelatedNewsImage(a.title, a.category),
+          sourceFavicon: favicon || 'https://www.google.com/s2/favicons?domain=news.google.com&sz=64',
+          snippet: cleanGoogleNewsSnippet(a.snippet, a.title),
+          timeAgo: formatRelativeTime(new Date(a.pubDate))
+        };
+      });
 
       const nextUpdateDate = newsState.lastUpdated
         ? new Date(new Date(newsState.lastUpdated).getTime() + 24 * 60 * 60 * 1000)
