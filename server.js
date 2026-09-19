@@ -716,25 +716,45 @@ async function requestDownloadLink(cdn, info, quality, type) {
     }
   }
 
-  // Fast direct mirror stream response
-  const ytId = info.id && info.id.length === 11 ? info.id : null;
-  const directFallback = ytId
-    ? `https://en.ssyoutube.com/watch?v=${ytId}`
-    : `https://en.savefrom.net/398/#url=${encodeURIComponent(info.originalUrl || '')}`;
+  // Direct video or progressive stream check
+  if (info.directVideo) {
+    const res = {
+      success: true,
+      downloadUrl: info.directVideo,
+      filename: `${cleanTitle}_${qualityStr}p.${ext}`,
+      title: info.title || 'High Definition Media',
+      duration: info.durationLabel || 'HD',
+      thumbnail: info.thumbnail,
+      quality: `${qualityStr}p`,
+      type: type,
+      isGateway: false
+    };
+    setCache(cacheKey, res);
+    return res;
+  }
 
-  const res = {
-    success: true,
-    downloadUrl: directFallback,
-    filename: `${cleanTitle}_${qualityStr}p.${ext}`,
-    title: info.title || 'High Definition Media',
-    duration: info.durationLabel || 'HD',
-    thumbnail: info.thumbnail,
-    quality: `${qualityStr}p`,
-    type: type,
-    isGateway: true
-  };
-  setCache(cacheKey, res);
-  return res;
+  // Check progressive formats from info if available
+  if (info.video_formats && Array.isArray(info.video_formats)) {
+    const matchFmt = info.video_formats.find(f => String(f.quality) === String(qualityStr) && f.url) ||
+                     info.video_formats.find(f => f.url);
+    if (matchFmt && matchFmt.url) {
+      const res = {
+        success: true,
+        downloadUrl: matchFmt.url,
+        filename: `${cleanTitle}_${qualityStr}p.${ext}`,
+        title: info.title || 'High Definition Media',
+        duration: info.durationLabel || 'HD',
+        thumbnail: info.thumbnail,
+        quality: `${qualityStr}p`,
+        type: type,
+        isGateway: false
+      };
+      setCache(cacheKey, res);
+      return res;
+    }
+  }
+
+  throw new Error('Direct media stream not available for this link. Please check if the video is public.');
 }
 
 // -------------------------------------------------------------
