@@ -110,6 +110,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _selectedFormat.value = format
     }
 
+    fun fastOneClickDownload(formatType: String) { // "hd" or "mp3"
+        val input = _urlInput.value.trim().ifEmpty {
+            "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+        }
+        _urlInput.value = input
+        val meta = downloadManager.analyzeUrl(input) ?: return
+        _analyzedMetadata.value = meta
+        val format = if (formatType == "mp3") {
+            meta.formats.firstOrNull { it.extension == "mp3" } ?: meta.formats.lastOrNull()
+        } else {
+            meta.formats.firstOrNull { it.resolution.contains("720") || it.resolution.contains("1080") } ?: meta.formats.firstOrNull()
+        } ?: return
+        _selectedFormat.value = format
+        viewModelScope.launch {
+            downloadManager.downloadVideo(meta, format)
+        }
+    }
+
     fun startDownload() {
         val metadata = _analyzedMetadata.value ?: return
         val format = _selectedFormat.value ?: metadata.formats.firstOrNull() ?: return

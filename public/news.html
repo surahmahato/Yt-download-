@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recent News from Google - Daily Automatic Updates | YT Download</title>
+  <meta name="description" content="Stay up to date with recent headlines from Google News. Daily automatic updates across top stories, technology, business, world news, and entertainment.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* Page specific refinements */
+    .news-nav-active {
+      background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.4) !important;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header matching site style with Blue News button -->
+  <header class="header">
+    <div class="header-container">
+      <a href="/" class="logo-group" style="text-decoration:none;">
+        <div class="logo-icon-wrap">
+          <svg class="logo-svg" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+        </div>
+        <div class="logo-text">YT <span>Download</span></div>
+      </a>
+
+      <div class="header-badges">
+        <!-- Downloader Navigation -->
+        <a href="/" class="btn-apk-header" style="background:#f1f5f9;color:#1e293b;border-color:#cbd5e1;box-shadow:none;" title="Video Downloader">
+          <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/></svg>
+          <span>Downloader</span>
+        </a>
+
+        <!-- Blue News Button (Active on this page) -->
+        <a href="/news" id="headerNewsBtn" class="btn-news-header news-nav-active" title="Google News (Updated Daily)">
+          <svg class="news-icon-svg" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+          <span class="news-btn-text">News</span>
+          <span class="news-badge-pill">Daily</span>
+        </a>
+
+        <!-- APK Download Button with direct download link -->
+        <a href="/download-apk" id="headerDownloadApkBtn" class="btn-apk-header" download="YT_Download.apk" title="Download Android App APK (18 MB)">
+          <svg class="apk-icon-svg" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+          <span class="apk-btn-text">Download App</span>
+          <span class="apk-badge-pill">APK</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- News Page Main Content -->
+  <main class="news-page-container">
+    <section class="news-hero-section">
+      <div class="news-live-ribbon">
+        <span class="news-live-dot"></span>
+        <span>Google News Live Feed &bull; Updated Daily Automatically</span>
+      </div>
+      <h1 class="news-hero-title">Recent <span>Google News</span></h1>
+      <p class="news-hero-subtitle">Explore the latest news headlines from verified global sources, refreshed automatically every day directly from Google News.</p>
+
+      <div class="news-sync-meta">
+        <div class="news-sync-item">
+          <svg style="width:16px;height:16px;fill:#64748b" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+          <span id="newsLastUpdatedLabel">Syncing news...</span>
+        </div>
+        <button type="button" id="refreshNewsBtn" class="btn-news-refresh" title="Check for fresh news from Google now">
+          <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+          <span>Refresh Now</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- News Controls Card (Categories & Live Search) -->
+    <div class="news-controls-card">
+      <div class="news-categories-bar" id="newsCategoriesBar">
+        <button type="button" class="news-cat-pill active" data-category="all">All Top Stories</button>
+        <button type="button" class="news-cat-pill" data-category="technology">Technology & AI</button>
+        <button type="button" class="news-cat-pill" data-category="entertainment">Entertainment</button>
+        <button type="button" class="news-cat-pill" data-category="world">World News</button>
+        <button type="button" class="news-cat-pill" data-category="business">Business</button>
+      </div>
+
+      <div class="news-search-row">
+        <div class="news-search-box">
+          <svg class="news-search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input type="text" id="newsSearchInput" class="news-search-input" placeholder="Search Google News headlines, sources, or keywords..." aria-label="Search news">
+        </div>
+        <div class="news-results-count" id="newsResultsCount">Loading headlines...</div>
+      </div>
+    </div>
+
+    <!-- News Articles Grid -->
+    <div class="news-cards-grid" id="newsCardsGrid">
+      <!-- Loading skeletons initially -->
+      <div class="news-card" style="min-height: 220px; justify-content: center; align-items: center; grid-column: 1 / -1;">
+        <div style="display:flex; flex-direction:column; align-items:center; gap:12px; color:#64748b;">
+          <svg style="width:36px;height:36px;animation:spin 1s linear infinite;fill:#2563eb;" viewBox="0 0 24 24"><path d="M12 4V2C6.48 2 2 6.48 2 12h2c0-4.41 3.59-8 8-8zm0 16c4.41 0 8-3.59 8-8h2c0 5.52-4.48 10-10 10v-2z"/></svg>
+          <span style="font-weight:600;">Fetching live Google News headlines...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom CTA Card to Downloader & APK -->
+    <div class="news-bottom-cta">
+      <h3>Need to Download Videos or Audio?</h3>
+      <p>Save full HD videos from YouTube, TikTok, and Instagram directly into your gallery with 1-click downloads.</p>
+      <div class="news-cta-btns">
+        <a href="/" class="btn-cta-downloader">
+          <svg style="width:18px;height:18px;fill:currentColor" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+          <span>Go to Video Downloader</span>
+        </a>
+        <a href="/download-apk" download="YT_Download.apk" class="btn-apk-header" style="padding:10px 18px;font-size:0.95rem;">
+          <svg class="apk-icon-svg" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+          <span>Download Android App (APK)</span>
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="logo-group">
+          <div class="logo-icon-wrap">
+            <svg class="logo-svg" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+          </div>
+          <div class="logo-text">YT <span>Download</span></div>
+        </div>
+
+        <div class="footer-links">
+          <a href="/">Video Downloader</a>
+          <a href="/news" style="color:#2563eb;font-weight:700;">Google News</a>
+          <a href="/download-apk" download="YT_Download.apk">Download APK</a>
+          <a href="/#privacy">Privacy Policy</a>
+          <a href="/#terms">Terms of Service</a>
+          <a href="mailto:xinghsuraj733@gmail.com">Contact Support</a>
+        </div>
+      </div>
+
+      <div class="disclaimer-text">
+        Disclaimer: News content is aggregated directly from Google News RSS feeds for informational purposes. All headlines, snippets, and trademarks belong to their respective publishers and news organizations.
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toast Notification Container -->
+  <div id="toastNotification" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f172a;color:#ffffff;padding:12px 24px;border-radius:12px;font-size:0.9rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.3);z-index:9999;display:none;transition:opacity 0.2s;border:1px solid rgba(255,255,255,0.15);"></div>
+
+  <!-- News Page Client Logic -->
+  <script>
+    (function() {
+      let currentCategory = 'all';
+      let allArticles = [];
+      let lastUpdatedTime = null;
+
+      const grid = document.getElementById('newsCardsGrid');
+      const resultsCount = document.getElementById('newsResultsCount');
+      const lastUpdatedLabel = document.getElementById('newsLastUpdatedLabel');
+      const searchInput = document.getElementById('newsSearchInput');
+      const refreshBtn = document.getElementById('refreshNewsBtn');
+      const categoryPills = document.querySelectorAll('.news-cat-pill');
+      const toast = document.getElementById('toastNotification');
+
+      function showToast(msg) {
+        if (!toast) return;
+        toast.textContent = msg;
+        toast.style.display = 'block';
+        toast.style.opacity = '1';
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          setTimeout(() => { toast.style.display = 'none'; }, 200);
+        }, 3000);
+      }
+
+      function escapeHtml(text) {
+        if (!text) return '';
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return text.replace(/[&<>"']/g, m => map[m]);
+      }
+
+      function renderArticles(articles) {
+        if (!articles || articles.length === 0) {
+          grid.innerHTML = `
+            <div class="news-empty-state" style="grid-column: 1 / -1;">
+              <svg class="news-empty-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+              <h3 style="font-size:1.15rem;font-weight:700;color:#1e293b;margin-bottom:6px;">No matching headlines found</h3>
+              <p>Try searching with different terms or selecting another category.</p>
+            </div>
+          `;
+          resultsCount.textContent = '0 headlines';
+          return;
+        }
+
+        resultsCount.textContent = `Showing ${articles.length} headlines`;
+
+        grid.innerHTML = articles.map(item => {
+          const safeTitle = escapeHtml(item.title);
+          const safeSource = escapeHtml(item.source || 'Google News');
+          const safeSnippet = escapeHtml(item.snippet || item.title);
+          const safeLink = encodeURI(item.link);
+          const safeTime = escapeHtml(item.timeAgo || 'Recent');
+
+          return `
+            <article class="news-card">
+              <div>
+                <div class="news-card-header">
+                  <span class="news-card-source">${safeSource}</span>
+                  <span class="news-card-time">
+                    <svg style="width:12px;height:12px;fill:currentColor" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                    ${safeTime}
+                  </span>
+                </div>
+                <h2 class="news-card-title">
+                  <a href="${safeLink}" target="_blank" rel="noopener noreferrer">${safeTitle}</a>
+                </h2>
+                <p class="news-card-snippet">${safeSnippet}</p>
+              </div>
+              <div class="news-card-footer">
+                <a href="${safeLink}" target="_blank" rel="noopener noreferrer" class="news-read-btn">
+                  <span>Read on Google News</span>
+                  <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM5 5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2v-7h-2v7H5V7h7V5H5z"/></svg>
+                </a>
+                <button type="button" class="news-share-btn" data-url="${safeLink}" data-title="${safeTitle}" title="Share this article">
+                  <svg style="width:13px;height:13px;fill:currentColor" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>
+                  <span>Share</span>
+                </button>
+              </div>
+            </article>
+          `;
+        }).join('');
+
+        // Attach share handlers
+        document.querySelectorAll('.news-share-btn').forEach(btn => {
+          btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const shareUrl = this.getAttribute('data-url');
+            const shareTitle = this.getAttribute('data-title');
+            if (navigator.clipboard) {
+              navigator.clipboard.writeText(shareUrl).then(() => {
+                showToast('✓ Link copied to clipboard!');
+              }).catch(() => {
+                showToast('Link: ' + shareUrl);
+              });
+            } else {
+              showToast('Link: ' + shareUrl);
+            }
+          });
+        });
+      }
+
+      function filterAndDisplay() {
+        const query = (searchInput.value || '').trim().toLowerCase();
+        let filtered = allArticles;
+
+        if (currentCategory !== 'all') {
+          filtered = filtered.filter(item => item.category === currentCategory);
+        }
+
+        if (query) {
+          filtered = filtered.filter(item => {
+            const titleMatch = (item.title || '').toLowerCase().includes(query);
+            const sourceMatch = (item.source || '').toLowerCase().includes(query);
+            const snippetMatch = (item.snippet || '').toLowerCase().includes(query);
+            return titleMatch || sourceMatch || snippetMatch;
+          });
+        }
+
+        renderArticles(filtered);
+      }
+
+      async function fetchNews(forceRefresh = false) {
+        if (forceRefresh) {
+          refreshBtn.classList.add('spinning');
+        }
+
+        try {
+          const url = forceRefresh ? '/api/news?refresh=1' : '/api/news';
+          const res = await fetch(url);
+          const data = await res.json();
+
+          if (data && data.success && Array.isArray(data.articles)) {
+            allArticles = data.articles;
+            lastUpdatedTime = data.lastUpdated ? new Date(data.lastUpdated) : new Date();
+            
+            const timeStr = lastUpdatedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateStr = lastUpdatedTime.toLocaleDateString([], { month: 'short', day: 'numeric' });
+            lastUpdatedLabel.textContent = `Updated: ${dateStr}, ${timeStr} • Daily Auto-Update`;
+            
+            filterAndDisplay();
+
+            if (forceRefresh) {
+              showToast(`✓ Google News refreshed! ${data.totalArticles} articles loaded.`);
+            }
+          } else {
+            throw new Error(data.error || 'Failed to load articles');
+          }
+        } catch (err) {
+          console.error('Error fetching Google News:', err);
+          showToast('Could not load latest news. Retrying...');
+          if (allArticles.length === 0) {
+            grid.innerHTML = `
+              <div class="news-empty-state" style="grid-column: 1 / -1;">
+                <h3 style="color:#ef4444;margin-bottom:6px;">News feed connection issue</h3>
+                <p>Please check your internet connection or tap "Refresh Now".</p>
+              </div>
+            `;
+          }
+        } finally {
+          refreshBtn.classList.remove('spinning');
+        }
+      }
+
+      // Category tab click handling
+      categoryPills.forEach(pill => {
+        pill.addEventListener('click', function() {
+          categoryPills.forEach(p => p.classList.remove('active'));
+          this.classList.add('active');
+          currentCategory = this.getAttribute('data-category');
+          filterAndDisplay();
+        });
+      });
+
+      // Search input handler
+      searchInput.addEventListener('input', () => {
+        filterAndDisplay();
+      });
+
+      // Refresh button handler
+      refreshBtn.addEventListener('click', () => {
+        fetchNews(true);
+      });
+
+      // APK direct download click handler
+      const apkBtn = document.getElementById('headerDownloadApkBtn');
+      if (apkBtn) {
+        apkBtn.addEventListener('click', () => {
+          showToast('⬇️ Starting download for YT_Download.apk (18 MB)...');
+        });
+      }
+
+      // Initial load
+      fetchNews();
+    })();
+  </script>
+</body>
+</html>
