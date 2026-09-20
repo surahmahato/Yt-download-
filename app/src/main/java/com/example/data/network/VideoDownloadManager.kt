@@ -10,10 +10,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.io.FileOutputStream
+import java.io.InputStream
 import java.util.concurrent.TimeUnit
 
 sealed class DownloadState {
@@ -76,45 +79,38 @@ class VideoDownloadManager(private val context: Context) {
         val platform = validation.platform
         val sanitized = validation.sanitizedUrl
 
-        // Determine title and fallback public direct media stream
         val isDirectMp4 = sanitized.endsWith(".mp4", ignoreCase = true) ||
                 sanitized.contains(".mp4?", ignoreCase = true) ||
-                sanitized.contains("storage.googleapis.com") ||
-                sanitized.contains("commondatastorage.googleapis.com")
+                sanitized.endsWith(".webm", ignoreCase = true) ||
+                sanitized.endsWith(".mp3", ignoreCase = true)
 
         val title = when {
             isDirectMp4 -> {
                 val segment = sanitized.substringBefore("?").substringAfterLast("/").substringBeforeLast(".")
                 if (segment.isNotBlank()) segment.replace("_", " ").replace("-", " ").capitalizeWords()
-                else "Direct Stream Video"
+                else "Media Stream Video"
             }
-            platform == "YouTube" -> "Viral Trending Clip - $platform"
-            platform == "TikTok" -> "Trending Reel Clip - $platform"
-            platform == "Instagram" -> "Insta Reel Story - $platform"
-            platform == "Twitter/X" -> "Media Highlight - $platform"
-            platform == "Facebook" -> "Shared Story Video - $platform"
+            platform == "YouTube" -> "YouTube Video ($sanitized)"
+            platform == "TikTok" -> "TikTok Video (No Watermark)"
+            platform == "Instagram" -> "Instagram Video"
+            platform == "Twitter/X" -> "Twitter Video Highlight"
+            platform == "Facebook" -> "Shared Video"
             else -> "Media Video Stream"
         }
 
-        // Available formats
         val formats = listOf(
-            VideoFormatOption("1080p", "1080p", "Full HD (1080p)", "14.8 MB", "mp4", "video/mp4"),
-            VideoFormatOption("720p", "720p", "High Def (720p)", "8.4 MB", "mp4", "video/mp4"),
-            VideoFormatOption("480p", "480p", "Standard (480p)", "4.2 MB", "mp4", "video/mp4"),
-            VideoFormatOption("mp3", "Audio", "MP3 Audio Only", "2.1 MB", "mp3", "audio/mpeg")
+            VideoFormatOption("1080p", "1080p", "Full HD (1080p)", "18.4 MB", "mp4", "video/mp4"),
+            VideoFormatOption("720p", "720p", "High Def (720p)", "9.6 MB", "mp4", "video/mp4"),
+            VideoFormatOption("480p", "480p", "Standard (480p)", "4.8 MB", "mp4", "video/mp4"),
+            VideoFormatOption("mp3", "Audio", "MP3 Audio (320kbps)", "2.6 MB", "mp3", "audio/mpeg")
         )
 
-        // Ultra-reliable high speed stream CDN (guaranteed 200 OK, never 403)
-        val streamUrl = if (isDirectMp4) {
-            sanitized
-        } else {
-            "https://raw.githubusercontent.com/mediaelement/mediaelement-files/master/big_buck_bunny.mp4"
-        }
+        val streamUrl = if (isDirectMp4) sanitized else ""
 
         return AnalyzedVideoMetadata(
             title = title,
             platform = platform,
-            durationText = "00:15",
+            durationText = "HD Quality",
             originalUrl = sanitized,
             downloadStreamUrl = streamUrl,
             formats = formats
@@ -122,7 +118,154 @@ class VideoDownloadManager(private val context: Context) {
     }
 
     /**
-     * Downloads the stream directly and saves to Phone Gallery with multi-stream CDN resilience.
+     * Resolves the real video stream URL dynamically for YouTube, TikTok, and direct links.
+     */
+    private fun resolveDirectMediaStream(
+        originalUrl: String,
+        platform: String,
+        format: VideoFormatOption
+    ): Pair<String?, String?> {
+        // Direct media links
+        if (originalUrl.endsWith(".mp4", true) ||
+            originalUrl.contains(".mp4?") ||
+            originalUrl.endsWith(".webm", true) ||
+            originalUrl.endsWith(".mp3", true)) {
+            return Pair(originalUrl, null)
+        }
+
+        // 1. TikTok resolution via TikWM API (direct no-watermark MP4)
+        if (platform == "TikTok" || originalUrl.contains("tiktok.com")) {
+            try {
+                val apiUrl = "https://www.tikwm.com/api/?url=" + java.net.URLEncoder.encode(originalUrl, "UTF-8")
+                val req = Request.Builder()
+                    .url(apiUrl)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                    .build()
+                val resp = httpClient.newCall(req).execute()
+                if (resp.isSuccessful) {
+                    val bodyStr = resp.body?.string()
+                    if (!bodyStr.isNullOrBlank()) {
+                        val json = org.json.JSONObject(bodyStr)
+                        if (json.optInt("code") == 0) {
+                            val data = json.optJSONObject("data")
+                            if (data != null) {
+                                val videoUrl = if (format.id == "mp3") {
+                                    data.optString("music").ifBlank { data.optString("play") }
+                                } else {
+                                    data.optString("play").ifBlank { data.optString("wmplay") }
+                                }
+                                val videoTitle = data.optString("title", "TikTok Video").take(80)
+                                if (videoUrl.isNotBlank()) {
+                                    return Pair(videoUrl, videoTitle)
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        // 2. YouTube resolution via Savetube VIP & oEmbed
+        if (platform == "YouTube" || originalUrl.contains("youtube.com") || originalUrl.contains("youtu.be")) {
+            var resolvedTitle: String? = null
+            try {
+                val oembedUrl = "https://www.youtube.com/oembed?url=" + java.net.URLEncoder.encode(originalUrl, "UTF-8") + "&format=json"
+                val oembedReq = Request.Builder().url(oembedUrl).build()
+                val oembedResp = httpClient.newCall(oembedReq).execute()
+                if (oembedResp.isSuccessful) {
+                    val oembedJson = org.json.JSONObject(oembedResp.body?.string() ?: "{}")
+                    resolvedTitle = oembedJson.optString("title").takeIf { it.isNotBlank() }
+                }
+            } catch (_: Exception) {}
+
+            // Try Savetube API
+            try {
+                val cdnList = listOf("cdn51.savetube.vip", "cdn52.savetube.vip", "cdn53.savetube.vip", "cdn54.savetube.vip")
+                for (cdn in cdnList) {
+                    try {
+                        val infoUrl = "https://$cdn/info?url=" + java.net.URLEncoder.encode(originalUrl, "UTF-8")
+                        val infoReq = Request.Builder()
+                            .url(infoUrl)
+                            .header("User-Agent", "Mozilla/5.0 (Linux; Android 14)")
+                            .header("Referer", "https://save-tube.com/")
+                            .build()
+                        val infoResp = httpClient.newCall(infoReq).execute()
+                        if (infoResp.isSuccessful) {
+                            val infoBody = infoResp.body?.string() ?: ""
+                            val infoJson = org.json.JSONObject(infoBody)
+                            val data = infoJson.optJSONObject("data")
+                            val key = data?.optString("key") ?: infoJson.optString("key")
+                            if (!key.isNullOrBlank()) {
+                                val dlPayload = org.json.JSONObject().apply {
+                                    put("downloadType", if (format.id == "mp3") "audio" else "video")
+                                    put("quality", if (format.id == "mp3") "128" else format.resolution.replace("p", ""))
+                                    put("key", key)
+                                }
+                                val jsonMediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
+                                val requestBody = dlPayload.toString().toRequestBody(jsonMediaType)
+                                val dlReq = Request.Builder()
+                                    .url("https://$cdn/download")
+                                    .post(requestBody)
+                                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 14)")
+                                    .header("Referer", "https://save-tube.com/")
+                                    .build()
+                                val dlResp = httpClient.newCall(dlReq).execute()
+                                if (dlResp.isSuccessful) {
+                                    val dlJson = org.json.JSONObject(dlResp.body?.string() ?: "")
+                                    val dlUrl = dlJson.optJSONObject("data")?.optString("downloadUrl")
+                                        ?: dlJson.optString("downloadUrl")
+                                    if (!dlUrl.isNullOrBlank()) {
+                                        return Pair(dlUrl, resolvedTitle ?: data?.optString("title"))
+                                    }
+                                }
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            // Try Invidious Public API for YouTube formats
+            try {
+                val ytIdRegex = Regex("""(?:v=|/v/|youtu\.be/|/shorts/)([a-zA-Z0-9_-]{11})""")
+                val match = ytIdRegex.find(originalUrl)
+                val videoId = match?.groupValues?.getOrNull(1)
+                if (!videoId.isNullOrBlank()) {
+                    val invidiousHosts = listOf("inv.nadeko.net", "yewtu.be", "vid.puffyan.us")
+                    for (host in invidiousHosts) {
+                        try {
+                            val invReq = Request.Builder()
+                                .url("https://$host/api/v1/videos/$videoId")
+                                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                                .build()
+                            val invResp = httpClient.newCall(invReq).execute()
+                            if (invResp.isSuccessful) {
+                                val invJson = org.json.JSONObject(invResp.body?.string() ?: "{}")
+                                val streams = invJson.optJSONArray("formatStreams")
+                                if (streams != null && streams.length() > 0) {
+                                    for (i in 0 until streams.length()) {
+                                        val streamObj = streams.getJSONObject(i)
+                                        val sUrl = streamObj.optString("url")
+                                        if (sUrl.isNotBlank()) {
+                                            return Pair(sUrl, resolvedTitle ?: invJson.optString("title"))
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (_: Exception) {}
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        return Pair(null, null)
+    }
+
+    /**
+     * Downloads the stream directly and saves to Phone Gallery with real stream resolution.
      */
     suspend fun downloadVideo(
         metadata: AnalyzedVideoMetadata,
@@ -131,58 +274,52 @@ class VideoDownloadManager(private val context: Context) {
         try {
             _downloadState.value = DownloadState.Downloading(0f, 0L, 0L, 0L)
 
-            // Resilient candidate list: if any server returns 403 or closes connection, seamlessly try the next
-            val candidateUrls = mutableListOf<String>()
-            if (metadata.downloadStreamUrl.isNotBlank() && !metadata.downloadStreamUrl.contains("commondatastorage.googleapis.com")) {
-                candidateUrls.add(metadata.downloadStreamUrl)
-            }
-            if (metadata.originalUrl.isNotBlank() && (metadata.originalUrl.endsWith(".mp4", true) || metadata.originalUrl.contains(".mp4?"))) {
-                candidateUrls.add(metadata.originalUrl)
-            }
-            candidateUrls.add("https://raw.githubusercontent.com/mediaelement/mediaelement-files/master/big_buck_bunny.mp4")
-            candidateUrls.add("https://filesamples.com/samples/video/mp4/sample_960x540.mp4")
+            // Resolve real stream dynamically
+            var targetStreamUrl = metadata.downloadStreamUrl
+            var finalTitle = metadata.title
 
-            var successfulResponse: okhttp3.Response? = null
-            var lastErrorCode = 0
-            var lastErrorMessage = ""
-
-            for (streamUrl in candidateUrls.distinct()) {
-                try {
-                    val request = Request.Builder()
-                        .url(streamUrl)
-                        .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile; rv:128.0) Gecko/128.0 Firefox/128.0")
-                        .header("Accept", "*/*")
-                        .header("Accept-Language", "en-US,en;q=0.9")
-                        .header("Referer", "https://www.google.com/")
-                        .build()
-
-                    val call = httpClient.newCall(request)
-                    activeCall = call
-                    val response = call.execute()
-
-                    if (response.isSuccessful && response.body != null) {
-                        successfulResponse = response
-                        break
-                    } else {
-                        lastErrorCode = response.code
-                        lastErrorMessage = response.message
-                        response.close()
-                    }
-                } catch (e: Exception) {
-                    lastErrorMessage = e.message ?: "Connection error"
+            if (targetStreamUrl.isBlank() || !targetStreamUrl.startsWith("http")) {
+                val (resolvedUrl, resolvedTitle) = resolveDirectMediaStream(
+                    metadata.originalUrl,
+                    metadata.platform,
+                    selectedFormat
+                )
+                if (!resolvedUrl.isNullOrBlank()) {
+                    targetStreamUrl = resolvedUrl
+                }
+                if (!resolvedTitle.isNullOrBlank()) {
+                    finalTitle = resolvedTitle
                 }
             }
 
-            if (successfulResponse == null) {
+            if (targetStreamUrl.isBlank()) {
                 _downloadState.value = DownloadState.Failed(
-                    if (lastErrorCode > 0) "Server returned code $lastErrorCode: $lastErrorMessage"
-                    else "Could not establish secure download stream. Please check connection."
+                    "Could not extract a downloadable video stream for this link. Please verify that the link is public and accessible."
                 )
                 return@withContext false
             }
 
-            val body = successfulResponse.body ?: run {
-                successfulResponse.close()
+            // Create network request for the resolved stream
+            val request = Request.Builder()
+                .url(targetStreamUrl)
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36")
+                .header("Accept", "*/*")
+                .header("Accept-Language", "en-US,en;q=0.9")
+                .build()
+
+            val call = httpClient.newCall(request)
+            activeCall = call
+
+            val response = call.execute()
+            if (!response.isSuccessful || response.body == null) {
+                _downloadState.value = DownloadState.Failed(
+                    "Download server returned error HTTP ${response.code}. Please verify link or try another format."
+                )
+                return@withContext false
+            }
+
+            val body = response.body ?: run {
+                response.close()
                 _downloadState.value = DownloadState.Failed("Empty response body from video server")
                 return@withContext false
             }
@@ -199,14 +336,14 @@ class VideoDownloadManager(private val context: Context) {
             var bytesSinceLastUpdate = 0L
             var currentSpeedKbps = 0L
 
-            body.byteStream().use { inputStream ->
-                FileOutputStream(tempFile).use { outputStream ->
+            body.byteStream().use { inputStream: InputStream ->
+                FileOutputStream(tempFile).use { outputStream: FileOutputStream ->
                     val buffer = ByteArray(16 * 1024)
-                    var read: Int
-                    while (inputStream.read(buffer).also { read = it } != -1) {
-                        outputStream.write(buffer, 0, read)
-                        bytesDownloaded += read
-                        bytesSinceLastUpdate += read
+                    var readBytes: Int = inputStream.read(buffer)
+                    while (readBytes != -1) {
+                        outputStream.write(buffer, 0, readBytes)
+                        bytesDownloaded += readBytes
+                        bytesSinceLastUpdate += readBytes
 
                         val now = System.currentTimeMillis()
                         val diff = now - lastUpdateTime
@@ -223,6 +360,7 @@ class VideoDownloadManager(private val context: Context) {
                                 speedKbps = currentSpeedKbps
                             )
                         }
+                        readBytes = inputStream.read(buffer)
                     }
                 }
             }

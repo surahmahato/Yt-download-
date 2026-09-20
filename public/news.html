@@ -78,6 +78,30 @@
       color: #ef4444;
     }
 
+    /* Top Bar Back Button */
+    .btn-topbar-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      color: #0f172a;
+      font-size: 0.84rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .btn-topbar-back:hover {
+      background: #e2e8f0;
+      color: #2563eb;
+      border-color: #93c5fd;
+      transform: translateX(-2px);
+    }
+
     .header-badges {
       display: flex;
       align-items: center;
@@ -515,6 +539,29 @@
       padding: 12px 16px 14px 16px;
       margin-top: auto;
       background: #ffffff;
+      gap: 8px;
+    }
+
+    .btn-card-view-desc {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #2563eb;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-card-view-desc:hover {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #1d4ed8;
+      transform: translateY(-1px);
     }
 
     .news-read-btn {
@@ -538,19 +585,218 @@
       border: 1px solid #e2e8f0;
       color: #64748b;
       border-radius: 8px;
-      padding: 5px 9px;
+      padding: 6px 10px;
       font-size: 0.78rem;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 5px;
       transition: all 0.2s;
+      flex-shrink: 0;
     }
 
     .news-share-btn:hover {
       background: #f8fafc;
       color: #1e293b;
       border-color: #cbd5e1;
+    }
+
+    /* News Detail Full Description Modal */
+    .news-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    .news-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    .news-modal-dialog {
+      position: relative;
+      background: #ffffff;
+      width: 100%;
+      max-width: 680px;
+      max-height: 88vh;
+      border-radius: 20px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 10;
+      animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(18px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .news-modal-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid #f1f5f9;
+      background: #ffffff;
+      flex-shrink: 0;
+    }
+
+    .btn-modal-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      border-radius: 9999px;
+      font-size: 0.84rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-modal-back:hover {
+      background: #dbeafe;
+      transform: translateX(-2px);
+    }
+
+    .news-modal-close-x {
+      background: transparent;
+      border: none;
+      font-size: 1.5rem;
+      line-height: 1;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .news-modal-close-x:hover {
+      color: #0f172a;
+      background: #f1f5f9;
+    }
+
+    .news-modal-body {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 24px;
+    }
+
+    .news-modal-media {
+      position: relative;
+      width: 100%;
+      height: 250px;
+      background: #e2e8f0;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .news-modal-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .news-modal-content {
+      padding: 20px 22px 10px 22px;
+    }
+
+    .news-modal-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .news-modal-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.35;
+      margin: 0 0 16px 0;
+    }
+
+    .news-modal-desc-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .news-modal-full-text {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: #334155;
+      white-space: pre-line;
+      word-break: break-word;
+    }
+
+    .news-modal-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn-modal-read-full {
+      flex: 1;
+      min-width: 220px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+      color: #ffffff;
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 12px 20px;
+      border-radius: 12px;
+      text-decoration: none;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+      transition: all 0.2s;
+    }
+
+    .btn-modal-read-full:hover {
+      background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+      transform: translateY(-1px);
+    }
+
+    .btn-modal-share {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: #334155;
+      font-size: 0.88rem;
+      font-weight: 700;
+      padding: 11px 18px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-modal-share:hover {
+      background: #f8fafc;
+      color: #0f172a;
+      border-color: #94a3b8;
     }
 
     /* Empty or Loading States */
@@ -565,15 +811,16 @@
       box-sizing: border-box;
     }
 
-    /* Bottom CTA Card to Downloader & APK */
+    /* Bottom CTA Card to Downloader & APK - Clean Modern Light Card (No Black Shape) */
     .news-bottom-cta {
-      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
       border-radius: 20px;
       padding: 32px 24px;
-      color: #ffffff;
+      color: #0f172a;
       text-align: center;
       margin-top: 40px;
-      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
       width: 100%;
       box-sizing: border-box;
     }
@@ -581,11 +828,12 @@
     .news-bottom-cta h3 {
       font-size: 1.45rem;
       font-weight: 800;
+      color: #0f172a;
       margin: 0 0 8px 0;
     }
 
     .news-bottom-cta p {
-      color: #94a3b8;
+      color: #64748b;
       max-width: 540px;
       margin: 0 auto 20px auto;
       font-size: 0.92rem;
@@ -728,15 +976,23 @@
   </style>
 </head>
 <body>
-  <!-- Header matching site style with Play Logo Badge (Clean, No Cloud Image) -->
+  <!-- Header matching site style with Back Arrow and Logo Badge -->
   <header class="header">
     <div class="header-container">
-      <a href="/" class="logo-group">
-        <div class="logo-badge">
-          <svg style="width:18px;height:18px;fill:#ffffff;display:inline-block;" viewBox="0 0 24 24"><path d="M10 8.64L15.27 12 10 15.36V8.64M8 5v14l11-7L8 5z"/></svg>
-        </div>
-        <div class="logo-text">YT <span>Download</span></div>
-      </a>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <!-- Top Bar Back Arrow Button -->
+        <a href="/" class="btn-topbar-back" id="headerBackBtn" title="Back to Video Downloader">
+          <svg style="width:17px;height:17px;fill:currentColor;display:inline-block;" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+          <span>Back</span>
+        </a>
+
+        <a href="/" class="logo-group">
+          <div class="logo-badge">
+            <svg style="width:18px;height:18px;fill:#ffffff;display:inline-block;" viewBox="0 0 24 24"><path d="M10 8.64L15.27 12 10 15.36V8.64M8 5v14l11-7L8 5z"/></svg>
+          </div>
+          <div class="logo-text">YT <span>Download</span></div>
+        </a>
+      </div>
 
       <div class="header-badges">
         <!-- Downloader Navigation -->
@@ -854,6 +1110,58 @@
     </div>
   </footer>
 
+  <!-- News Article Full Detail Modal -->
+  <div id="newsDetailModal" class="news-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="news-modal-backdrop" id="newsModalBackdrop"></div>
+    <div class="news-modal-dialog">
+      <div class="news-modal-topbar">
+        <button type="button" class="btn-modal-back" id="closeNewsModalBtn" title="Back to news list">
+          <svg style="width:17px;height:17px;fill:currentColor;" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+          <span>Back to News</span>
+        </button>
+        <button type="button" class="news-modal-close-x" id="closeNewsModalXBtn" aria-label="Close modal">&times;</button>
+      </div>
+
+      <div class="news-modal-body">
+        <div class="news-modal-media">
+          <img id="modalImg" src="" alt="" class="news-modal-img">
+          <span class="news-card-category-badge" id="modalCategoryBadge"></span>
+        </div>
+
+        <div class="news-modal-content">
+          <div class="news-modal-meta">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <img id="modalFavicon" src="" alt="" class="news-source-favicon" style="width:18px;height:18px;display:inline-block;" onerror="this.style.display='none'">
+              <span id="modalSourceName" class="news-card-source" style="font-size:0.92rem;font-weight:700;color:#2563eb;"></span>
+            </div>
+            <span id="modalTime" class="news-card-time"></span>
+          </div>
+
+          <h2 id="modalTitle" class="news-modal-title"></h2>
+
+          <div class="news-modal-desc-box">
+            <h4 style="margin:0 0 12px 0;font-size:0.88rem;text-transform:uppercase;letter-spacing:0.6px;color:#475569;display:flex;align-items:center;gap:6px;">
+              <svg style="width:16px;height:16px;fill:#2563eb;" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+              <span>Full Story Description &amp; Details</span>
+            </h4>
+            <div id="modalFullDescription" class="news-modal-full-text"></div>
+          </div>
+
+          <div class="news-modal-actions">
+            <a id="modalExternalLink" href="" target="_blank" rel="noopener noreferrer" class="btn-modal-read-full">
+              <span>Read Original Story on Publisher Site</span>
+              <svg style="width:16px;height:16px;fill:currentColor;" viewBox="0 0 24 24"><path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM5 5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2v-7h-2v7H5V7h7V5H5z"/></svg>
+            </a>
+            <button type="button" id="modalShareBtn" class="btn-modal-share">
+              <svg style="width:16px;height:16px;fill:currentColor;" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>
+              <span>Share</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toastNotification" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f172a;color:#ffffff;padding:12px 24px;border-radius:12px;font-size:0.9rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.3);z-index:9999;display:none;transition:opacity 0.2s;border:1px solid rgba(255,255,255,0.15);pointer-events:none;"></div>
 
@@ -862,6 +1170,7 @@
     (function() {
       let currentCategory = 'all';
       let allArticles = [];
+      let activeFilteredArticles = [];
 
       const grid = document.getElementById('newsCardsGrid');
       const resultsCount = document.getElementById('newsResultsCount');
@@ -870,6 +1179,23 @@
       const refreshBtn = document.getElementById('refreshNewsBtn');
       const categoryPills = document.querySelectorAll('.news-cat-pill');
       const toast = document.getElementById('toastNotification');
+
+      // Modal elements
+      const modal = document.getElementById('newsDetailModal');
+      const modalBackdrop = document.getElementById('newsModalBackdrop');
+      const closeNewsModalBtn = document.getElementById('closeNewsModalBtn');
+      const closeNewsModalXBtn = document.getElementById('closeNewsModalXBtn');
+      const modalImg = document.getElementById('modalImg');
+      const modalCategoryBadge = document.getElementById('modalCategoryBadge');
+      const modalFavicon = document.getElementById('modalFavicon');
+      const modalSourceName = document.getElementById('modalSourceName');
+      const modalTime = document.getElementById('modalTime');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalFullDescription = document.getElementById('modalFullDescription');
+      const modalExternalLink = document.getElementById('modalExternalLink');
+      const modalShareBtn = document.getElementById('modalShareBtn');
+
+      let currentModalArticle = null;
 
       function showToast(msg) {
         if (!toast) return;
@@ -888,6 +1214,42 @@
         return text.replace(/[&<>"']/g, m => map[m]);
       }
 
+      // Intelligent Client-Side Deduplication
+      function areHeadlinesDuplicates(t1, t2) {
+        if (!t1 || !t2) return false;
+        const s1 = t1.toLowerCase().trim().replace(/ - [^-]+$/, '');
+        const s2 = t2.toLowerCase().trim().replace(/ - [^-]+$/, '');
+        if (s1 === s2) return true;
+
+        const stopWords = new Set(['the','a','an','and','or','in','on','at','to','for','of','with','by','from','as','is','are','was','were','will','be','it','this','that','how','why','what','new','latest','live','updates','news']);
+        const tokens1 = s1.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+        const tokens2 = s2.replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+
+        if (tokens1.length < 3 || tokens2.length < 3) return false;
+
+        const set2 = new Set(tokens2);
+        const matchCount = tokens1.filter(w => set2.has(w)).length;
+        const minLen = Math.min(tokens1.length, tokens2.length);
+
+        if (matchCount / minLen >= 0.55) return true;
+
+        // Compare first 3 significant keywords
+        if (tokens1[0] === tokens2[0] && tokens1[1] === tokens2[1] && tokens1[2] === tokens2[2]) return true;
+
+        return false;
+      }
+
+      function deduplicateArticles(articles) {
+        const unique = [];
+        for (const item of articles) {
+          const isDup = unique.some(existing => areHeadlinesDuplicates(existing.title, item.title));
+          if (!isDup) {
+            unique.push(item);
+          }
+        }
+        return unique;
+      }
+
       // Default fallback images by category in case external image fails
       const FALLBACK_CATEGORY_IMAGES = {
         technology: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&auto=format&fit=crop&q=80',
@@ -897,7 +1259,77 @@
         general: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&auto=format&fit=crop&q=80'
       };
 
+      function openArticleDetail(index) {
+        const item = activeFilteredArticles[index];
+        if (!item) return;
+
+        currentModalArticle = item;
+        const fallbackImg = FALLBACK_CATEGORY_IMAGES[item.category] || FALLBACK_CATEGORY_IMAGES.general;
+        const safeImageUrl = item.imageUrl || fallbackImg;
+
+        modalImg.src = safeImageUrl;
+        modalImg.alt = item.title;
+        modalCategoryBadge.textContent = item.categoryName || 'News';
+
+        if (item.sourceFavicon) {
+          modalFavicon.src = item.sourceFavicon;
+          modalFavicon.style.display = 'inline-block';
+        } else {
+          modalFavicon.style.display = 'none';
+        }
+
+        modalSourceName.textContent = item.source || 'Google News';
+        modalTime.textContent = item.timeAgo || 'Recent';
+        modalTitle.textContent = item.title;
+
+        // Show full description with rich formatted text
+        const fullDesc = (item.fullDescription && item.fullDescription.trim().length > 0) 
+          ? item.fullDescription 
+          : (item.snippet || item.title);
+        modalFullDescription.textContent = fullDesc;
+
+        modalExternalLink.href = item.link || '#';
+
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeArticleDetail() {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+        currentModalArticle = null;
+      }
+
+      // Modal close listeners
+      closeNewsModalBtn.addEventListener('click', closeArticleDetail);
+      closeNewsModalXBtn.addEventListener('click', closeArticleDetail);
+      modalBackdrop.addEventListener('click', closeArticleDetail);
+
+      // Keyboard escape to close modal
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.style.display === 'flex') {
+          closeArticleDetail();
+        }
+      });
+
+      // Modal share button
+      modalShareBtn.addEventListener('click', () => {
+        if (!currentModalArticle) return;
+        const shareUrl = currentModalArticle.link;
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(shareUrl).then(() => {
+            showToast('✓ Link copied to clipboard!');
+          }).catch(() => {
+            showToast('Link: ' + shareUrl);
+          });
+        } else {
+          showToast('Link: ' + shareUrl);
+        }
+      });
+
       function renderArticles(articles) {
+        activeFilteredArticles = articles;
+
         if (!articles || articles.length === 0) {
           grid.innerHTML = `
             <div class="news-empty-state" style="grid-column: 1 / -1;">
@@ -910,9 +1342,9 @@
           return;
         }
 
-        resultsCount.textContent = `Showing ${articles.length} headlines`;
+        resultsCount.textContent = `Showing ${articles.length} headlines (Duplicates removed)`;
 
-        grid.innerHTML = articles.map(item => {
+        grid.innerHTML = articles.map((item, idx) => {
           const safeTitle = escapeHtml(item.title);
           const safeSource = escapeHtml(item.source || 'Google News');
           const safeSnippet = escapeHtml(item.snippet || item.title);
@@ -926,7 +1358,7 @@
           const safeImageUrl = item.imageUrl ? escapeHtml(item.imageUrl) : fallbackImg;
 
           return `
-            <article class="news-card">
+            <article class="news-card" data-index="${idx}" style="cursor:pointer;" title="Click to view full description">
               <div class="news-card-media">
                 <img src="${safeImageUrl}" alt="${safeTitle}" class="news-card-img" loading="lazy" onerror="this.onerror=null;this.src='${fallbackImg}';">
                 <span class="news-card-category-badge">${safeCategory}</span>
@@ -942,16 +1374,14 @@
                     ${safeTime}
                   </span>
                 </div>
-                <h2 class="news-card-title">
-                  <a href="${safeLink}" target="_blank" rel="noopener noreferrer">${safeTitle}</a>
-                </h2>
+                <h2 class="news-card-title">${safeTitle}</h2>
                 <p class="news-card-snippet">${safeSnippet}</p>
               </div>
               <div class="news-card-footer">
-                <a href="${safeLink}" target="_blank" rel="noopener noreferrer" class="news-read-btn">
-                  <span>Read on Google News</span>
-                  <svg style="width:14px;height:14px;fill:currentColor;display:inline-block;" viewBox="0 0 24 24"><path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM5 5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2v-7h-2v7H5V7h7V5H5z"/></svg>
-                </a>
+                <button type="button" class="btn-card-view-desc" data-index="${idx}">
+                  <span>View All Description</span>
+                  <svg style="width:14px;height:14px;fill:currentColor;" viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+                </button>
                 <button type="button" class="news-share-btn" data-url="${safeLink}" data-title="${safeTitle}" title="Share this article">
                   <svg style="width:13px;height:13px;fill:currentColor;display:inline-block;" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>
                   <span>Share</span>
@@ -961,10 +1391,29 @@
           `;
         }).join('');
 
+        // Attach click handlers to cards
+        document.querySelectorAll('.news-card').forEach(card => {
+          card.addEventListener('click', function(e) {
+            // If user clicked the share button, don't trigger modal
+            if (e.target.closest('.news-share-btn')) return;
+            const idx = parseInt(this.getAttribute('data-index'), 10);
+            openArticleDetail(idx);
+          });
+        });
+
+        // Attach direct button handler for "View All Description"
+        document.querySelectorAll('.btn-card-view-desc').forEach(btn => {
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const idx = parseInt(this.getAttribute('data-index'), 10);
+            openArticleDetail(idx);
+          });
+        });
+
         // Attach share handlers
         document.querySelectorAll('.news-share-btn').forEach(btn => {
           btn.addEventListener('click', function(e) {
-            e.preventDefault();
+            e.stopPropagation();
             const shareUrl = this.getAttribute('data-url');
             if (navigator.clipboard) {
               navigator.clipboard.writeText(shareUrl).then(() => {
@@ -992,7 +1441,8 @@
             const titleMatch = (item.title || '').toLowerCase().includes(query);
             const sourceMatch = (item.source || '').toLowerCase().includes(query);
             const snippetMatch = (item.snippet || '').toLowerCase().includes(query);
-            return titleMatch || sourceMatch || snippetMatch;
+            const descMatch = (item.fullDescription || '').toLowerCase().includes(query);
+            return titleMatch || sourceMatch || snippetMatch || descMatch;
           });
         }
 
@@ -1010,7 +1460,8 @@
           const data = await res.json();
 
           if (data && data.success && Array.isArray(data.articles)) {
-            allArticles = data.articles;
+            // Run intelligent deduplication
+            allArticles = deduplicateArticles(data.articles);
             const lastUpdated = data.lastUpdated ? new Date(data.lastUpdated) : new Date();
             
             const timeStr = lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1020,7 +1471,7 @@
             filterAndDisplay();
 
             if (forceRefresh) {
-              showToast(`✓ Google News refreshed with latest images! (${data.totalArticles} articles)`);
+              showToast(`✓ Google News refreshed! (${allArticles.length} unique articles)`);
             }
           } else {
             throw new Error(data.error || 'Failed to load articles');

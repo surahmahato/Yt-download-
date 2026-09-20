@@ -1689,7 +1689,7 @@ body {
   transform: translateY(-1px);
 }
 
-/* Video Player Modal */
+/* Video Player & APK Download Modal (Fully Scrollable & Responsive) */
 .video-player-modal {
   position: fixed;
   top: 0;
@@ -1698,17 +1698,19 @@ body {
   height: 100vh;
   z-index: 99999;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 16px;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
 }
 
 .video-modal-backdrop {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   background: rgba(15, 23, 42, 0.75);
   backdrop-filter: blur(4px);
 }
@@ -1720,8 +1722,11 @@ body {
   border-radius: var(--radius-lg);
   max-width: 580px;
   width: 100%;
+  max-height: 90vh;
+  margin: 20px auto;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-  overflow: hidden;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);

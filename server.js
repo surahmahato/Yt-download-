@@ -224,11 +224,58 @@ function getRelatedNewsImage(title, categoryId) {
   return pool[idx];
 }
 
-// Clean HTML snippet from Google News RSS description
-function cleanGoogleNewsSnippet(rawDesc, fallbackTitle) {
-  if (!rawDesc) return fallbackTitle || '';
-  
-  // Unescape HTML entities first so <ol> and <li> become actual tags to strip
+// Intelligent duplicate detection across news syndications and feeds
+function areHeadlinesDuplicates(titleA, titleB) {
+  if (!titleA || !titleB) return false;
+
+  const cleanA = titleA.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cleanB = titleB.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (cleanA === cleanB) return true;
+  if (cleanA.length > 25 && cleanB.length > 25) {
+    if (cleanA.includes(cleanB) || cleanB.includes(cleanA)) return true;
+  }
+
+  const stopWords = new Set([
+    'this', 'that', 'with', 'from', 'have', 'were', 'what', 'when', 'where', 'which', 'about',
+    'after', 'will', 'more', 'than', 'their', 'there', 'been', 'over', 'into', 'just', 'also',
+    'amid', 'news', 'live', 'says', 'said', 'report', 'reports', 'update', 'updates', 'video',
+    'watch', 'exclusive', 'breaking', 'look', 'first', 'here', 'could', 'would', 'should'
+  ]);
+
+  const getTokens = (str) => str.toLowerCase().replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 3 && !stopWords.has(w));
+
+  const tokensA = getTokens(titleA);
+  const tokensB = getTokens(titleB);
+
+  if (tokensA.length >= 3 && tokensB.length >= 3) {
+    const setB = new Set(tokensB);
+    const common = tokensA.filter(w => setB.has(w));
+    const minLen = Math.min(tokensA.length, tokensB.length);
+    const similarity = common.length / minLen;
+
+    // Over 50% keyword overlap means it is coverage of the exact same news story
+    if (similarity >= 0.5) return true;
+
+    // First 3 significant words match in sequence
+    if (tokensA.slice(0, 3).join(' ') === tokensB.slice(0, 3).join(' ')) return true;
+  }
+
+  return false;
+}
+
+// Clean HTML and extract full story description and structured highlights from Google News RSS
+function parseGoogleNewsDescription(rawDesc, fallbackTitle, source) {
+  if (!rawDesc) {
+    return {
+      snippet: fallbackTitle || 'Read the full coverage on Google News.',
+      fullDescription: `${fallbackTitle}.\n\nDetailed reporting provided by ${source || 'verified news publishers'}. Tap the link below to access the full news article and ongoing developments.`,
+      relatedSources: []
+    };
+  }
+
+  // Unescape HTML entities
   let decoded = rawDesc
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
@@ -237,15 +284,39 @@ function cleanGoogleNewsSnippet(rawDesc, fallbackTitle) {
     .replace(/&amp;/g, '&')
     .replace(/&nbsp;/g, ' ');
 
-  // Strip all HTML markup
-  let cleanText = decoded.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-
-  // If the clean text is too short or is only a URL, use fallback title
-  if (!cleanText || cleanText.length < 15 || cleanText.startsWith('http')) {
-    return fallbackTitle || 'Read the full verified story and coverage on Google News.';
+  // Extract all individual article points / headlines packaged by Google News
+  const listItems = [];
+  const liMatches = decoded.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi);
+  for (const m of liMatches) {
+    const liContent = m[1];
+    const liText = liContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (liText && liText.length > 6) {
+      listItems.push(liText);
+    }
   }
 
-  return cleanText;
+  // Strip all HTML tags
+  let cleanText = decoded.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+  let snippet = listItems.length > 0 ? listItems[0] : cleanText;
+  if (!snippet || snippet.length < 15 || snippet.startsWith('http')) {
+    snippet = fallbackTitle || 'Read the full verified story and coverage on Google News.';
+  }
+
+  let fullDescription = '';
+  if (listItems.length > 1) {
+    fullDescription = listItems.map(item => `• ${item}`).join('\n\n');
+  } else if (cleanText.length > 40) {
+    fullDescription = cleanText;
+  } else {
+    fullDescription = `${fallbackTitle}.\n\nFull breaking news story and context provided by ${source || 'Google News'}. Tap the original link below to view complete press statements, analysis, and multimedia reports.`;
+  }
+
+  return {
+    snippet: snippet.substring(0, 240),
+    fullDescription,
+    relatedSources: listItems
+  };
 }
 
 // Helper: Parse Google News RSS Feed
@@ -267,7 +338,7 @@ function parseGoogleNewsRss(xmlText, categoryId, categoryName) {
       title = title.substring(0, title.length - (source.length + 3)).trim();
     }
 
-    const snippet = cleanGoogleNewsSnippet(desc, title);
+    const { snippet, fullDescription, relatedSources } = parseGoogleNewsDescription(desc, title, source);
     const pubDate = pubDateStr ? new Date(pubDateStr) : new Date();
 
     // Determine domain for publisher favicon
@@ -298,7 +369,9 @@ function parseGoogleNewsRss(xmlText, categoryId, categoryName) {
         categoryName,
         pubDate: pubDate.toISOString(),
         timeAgo: formatRelativeTime(pubDate),
-        snippet: snippet.substring(0, 240)
+        snippet,
+        fullDescription,
+        relatedSources
       });
     }
   }
@@ -324,7 +397,6 @@ async function refreshGoogleNews(force = false) {
 
   try {
     const allArticles = [];
-    const seenTitles = new Set();
 
     for (const cat of GOOGLE_NEWS_CATEGORIES) {
       try {
@@ -342,9 +414,9 @@ async function refreshGoogleNews(force = false) {
           const xml = await res.text();
           const items = parseGoogleNewsRss(xml, cat.id, cat.name);
           for (const item of items) {
-            const key = item.title.toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (!seenTitles.has(key)) {
-              seenTitles.add(key);
+            // Check intelligent duplicate match
+            const isDuplicate = allArticles.some(existing => areHeadlinesDuplicates(existing.title, item.title));
+            if (!isDuplicate) {
               allArticles.push(item);
             }
           }
@@ -388,7 +460,9 @@ function initNewsCache() {
     if (fs.existsSync(NEWS_CACHE_FILE)) {
       const saved = JSON.parse(fs.readFileSync(NEWS_CACHE_FILE, 'utf8'));
       if (saved && Array.isArray(saved.articles) && saved.articles.length > 0) {
-        newsState.articles = saved.articles.map(article => {
+        const uniqueArticles = [];
+        for (const rawArticle of saved.articles) {
+          const article = { ...rawArticle };
           if (!article.imageUrl) {
             article.imageUrl = getRelatedNewsImage(article.title, article.category);
           }
@@ -398,11 +472,21 @@ function initNewsCache() {
               article.sourceFavicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(dom)}&sz=64`;
             } catch (e) {}
           }
-          article.snippet = cleanGoogleNewsSnippet(article.snippet, article.title);
-          return article;
-        });
+          if (!article.fullDescription) {
+            const parsed = parseGoogleNewsDescription(article.snippet, article.title, article.source);
+            article.snippet = parsed.snippet;
+            article.fullDescription = parsed.fullDescription;
+          }
+
+          // Deduplicate
+          const isDuplicate = uniqueArticles.some(existing => areHeadlinesDuplicates(existing.title, article.title));
+          if (!isDuplicate) {
+            uniqueArticles.push(article);
+          }
+        }
+        newsState.articles = uniqueArticles;
         newsState.lastUpdated = saved.lastUpdated;
-        console.log(`[Google News] Loaded and enriched ${saved.articles.length} cached articles with related images (Updated: ${saved.lastUpdated})`);
+        console.log(`[Google News] Loaded and deduplicated ${uniqueArticles.length} cached articles with related images (Updated: ${saved.lastUpdated})`);
       }
     }
   } catch (e) {
@@ -976,25 +1060,14 @@ const server = http.createServer(async (req, res) => {
       }));
     } catch (err) {
       console.error('Download/resolve link error:', err.message);
-      const normalized = normalizeVideoUrl(videoUrl);
-      const ytMatch = normalized.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-      const ytId = ytMatch ? ytMatch[1] : null;
-      const fallbackUrl = ytId
-        ? `https://en.ssyoutube.com/watch?v=${ytId}`
-        : `https://en.savefrom.net/398/#url=${encodeURIComponent(videoUrl)}`;
-
-      res.writeHead(200, {
+      res.writeHead(400, {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*'
       });
       res.end(JSON.stringify({
-        success: true,
-        downloadUrl: fallbackUrl,
-        filename: `video_${quality}p.${type === 'audio' ? 'mp3' : 'mp4'}`,
-        title: 'High Definition Media',
-        quality: `${quality}p`,
-        type: type,
-        isGateway: true
+        success: false,
+        error: 'Failed to extract direct download stream for this link. Please ensure the link is public and accessible.',
+        isGateway: false
       }));
     }
     return;
@@ -1019,23 +1092,17 @@ const server = http.createServer(async (req, res) => {
       const downloadData = await requestDownloadLink(cdn, info, quality, type);
 
       if (downloadData && downloadData.downloadUrl) {
-        if (downloadData.downloadUrl.startsWith('http') && !downloadData.isGateway) {
-          const proxyRedirect = `/api/proxy?url=${encodeURIComponent(downloadData.downloadUrl)}&filename=${encodeURIComponent(downloadData.filename)}&type=${type}`;
-          res.writeHead(302, { 'Location': proxyRedirect });
-          res.end();
-          return;
-        } else if (downloadData.downloadUrl.startsWith('http')) {
-          res.writeHead(302, { 'Location': downloadData.downloadUrl });
-          res.end();
-          return;
-        }
+        const proxyRedirect = `/api/proxy?url=${encodeURIComponent(downloadData.downloadUrl)}&filename=${encodeURIComponent(downloadData.filename)}&type=${type}`;
+        res.writeHead(302, { 'Location': proxyRedirect });
+        res.end();
+        return;
       }
     } catch (e) {
       console.warn('Fast download error:', e.message);
     }
 
-    res.writeHead(302, { 'Location': `https://en.savefrom.net/398/#url=${encodeURIComponent(videoUrl)}` });
-    res.end();
+    res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ success: false, error: 'Direct download unavailable for this media.' }));
     return;
   }
 

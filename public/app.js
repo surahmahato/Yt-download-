@@ -486,10 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (data && data.success && data.downloadUrl) {
         const filename = data.filename || `video_${quality}p.${type === 'audio' ? 'mp3' : 'mp4'}`;
-        const isGateway = data.isGateway || data.downloadUrl.includes('ssyoutube') || data.downloadUrl.includes('savefrom');
-        const finalDownloadUrl = isGateway
-          ? data.downloadUrl
-          : (data.streamProxyUrl || `/api/proxy?url=${encodeURIComponent(data.downloadUrl)}&filename=${encodeURIComponent(filename)}&type=${type}`);
+        const finalDownloadUrl = data.streamProxyUrl || `/api/proxy?url=${encodeURIComponent(data.downloadUrl)}&filename=${encodeURIComponent(filename)}&type=${type}`;
 
         if (currentVideoData) {
           currentVideoData.resolvedUrl = data.downloadUrl;
@@ -500,15 +497,14 @@ document.addEventListener('DOMContentLoaded', () => {
         showSuccessCard(filename, finalDownloadUrl, type);
         if (triggerBtn) triggerBtn.innerHTML = `<span>✓ Fast Download Started!</span>`;
       } else {
-        const fallbackUrl = `https://en.savefrom.net/398/#url=${encodeURIComponent(url)}`;
-        window.open(fallbackUrl, '_blank');
-        showSuccessCard(`video_${quality}p.mp4`, fallbackUrl, type);
+        const errMsg = (data && data.error) ? data.error : 'Could not extract direct media stream. Please verify the video link is public.';
+        alert(errMsg);
+        if (triggerBtn) triggerBtn.innerHTML = `<span>Download Failed</span>`;
       }
     } catch (err) {
       console.warn('Fast DL error:', err);
-      const fallbackUrl = `https://en.savefrom.net/398/#url=${encodeURIComponent(url)}`;
-      window.open(fallbackUrl, '_blank');
-      showSuccessCard(`video_${quality}p.mp4`, fallbackUrl, type);
+      alert('Unable to extract direct stream for this link right now. Please check if the video is public and accessible.');
+      if (triggerBtn) triggerBtn.innerHTML = `<span>Download Failed</span>`;
     } finally {
       setTimeout(() => {
         if (triggerBtn) {
@@ -878,6 +874,14 @@ document.addEventListener('DOMContentLoaded', () => {
     footerDownloadApkBtn.addEventListener('click', (e) => {
       e.preventDefault();
       openApkModal();
+    });
+  }
+
+  const directDownloadApkLinkTop = document.getElementById('directDownloadApkLinkTop');
+  if (directDownloadApkLinkTop) {
+    directDownloadApkLinkTop.addEventListener('click', (e) => {
+      e.preventDefault();
+      triggerApkDownload('/download-apk');
     });
   }
 

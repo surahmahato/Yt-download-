@@ -2528,23 +2528,25 @@ body {
 
 /* News Bottom CTA */
 .news-bottom-cta {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 20px;
   padding: 36px 30px;
-  color: #ffffff;
+  color: #0f172a;
   text-align: center;
   margin-top: 40px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
 }
 
 .news-bottom-cta h3 {
   font-size: 1.5rem;
   font-weight: 800;
+  color: #0f172a;
   margin-bottom: 8px;
 }
 
 .news-bottom-cta p {
-  color: #94a3b8;
+  color: #64748b;
   max-width: 540px;
   margin: 0 auto 20px auto;
   font-size: 0.95rem;
@@ -2826,13 +2828,6 @@ body {
             </div>
           </div>
 
-          <!-- Direct Mirror Gateway Button -->
-          <div class="mirror-gateway-box">
-            <span>Want original YouTube stream?</span>
-            <button type="button" id="mirrorGatewayBtn" class="mirror-link-btn">
-              ⚡ Open Direct High-Speed Video Stream Mirror
-            </button>
-          </div>
 
           <!-- Turbo Download Progress HUD (Interactive, Fast & No Boring Waiting) -->
           <div id="progressBox" class="progress-box turbo-hud">
@@ -3076,7 +3071,18 @@ body {
         <button type="button" id="closeApkModalBtn" class="modal-close-btn" aria-label="Close Modal">&times;</button>
       </div>
 
-      <div class="video-modal-body apk-modal-body">
+      <div class="video-modal-body apk-modal-body" style="overflow-y: auto; max-height: calc(85vh - 70px); -webkit-overflow-scrolling: touch;">
+        <!-- Top Primary Download Button (Immediately Visible Without Scrolling) -->
+        <div class="apk-action-section" style="margin-bottom: 4px;">
+          <a href="/download-apk" id="directDownloadApkLinkTop" class="apk-primary-download-btn" download="YT_Download.apk" style="padding: 16px 20px; box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);">
+            <svg class="apk-dl-icon" style="width:28px;height:28px;fill:currentColor;" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+            <div class="apk-dl-btn-content">
+              <span class="apk-dl-btn-title" style="font-size: 1.18rem;">Download YT_Download.apk</span>
+              <span class="apk-dl-btn-sub">Tap here to download official app &bull; 18 MB &bull; Free</span>
+            </div>
+          </a>
+        </div>
+
         <!-- App Presentation Hero Card -->
         <div class="apk-hero-card">
           <div class="apk-app-icon"><svg style="width:32px;height:32px;fill:#ffffff;" viewBox="0 0 24 24"><path d="M10 8.64L15.27 12 10 15.36V8.64M8 5v14l11-7L8 5z"/></svg>
