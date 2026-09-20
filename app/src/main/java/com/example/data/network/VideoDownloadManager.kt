@@ -2,6 +2,7 @@ package com.example.data.network
 
 import android.content.Context
 import android.net.Uri
+import android.util.Base64
 import com.example.data.security.CryptoManager
 import com.example.data.storage.GallerySaver
 import kotlinx.coroutines.CancellationException
@@ -14,10 +15,14 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.util.concurrent.TimeUnit
+import javax.crypto.Cipher
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
 sealed class DownloadState {
     object Idle : DownloadState()
@@ -52,7 +57,8 @@ data class AnalyzedVideoMetadata(
     val durationText: String,
     val originalUrl: String,
     val downloadStreamUrl: String,
-    val formats: List<VideoFormatOption>
+    val formats: List<VideoFormatOption>,
+    val thumbnailUrl: String? = null
 )
 
 class VideoDownloadManager(private val context: Context) {
@@ -70,6 +76,30 @@ class VideoDownloadManager(private val context: Context) {
     private var activeCall: okhttp3.Call? = null
 
     /**
+     * Decrypts AES-128-CBC encrypted data payload from Savetube API
+     */
+    private fun decryptSavetubePayload(encBase64: String): JSONObject? {
+        return try {
+            val secretKeyHex = "C5D58EF67A7584E4A29F6C35BBC4EB12"
+            val keyBytes = ByteArray(16) { i ->
+                secretKeyHex.substring(i * 2, i * 2 + 2).toInt(16).toByte()
+            }
+            val raw = Base64.decode(encBase64, Base64.DEFAULT)
+            if (raw.size < 16) return null
+            val iv = raw.copyOfRange(0, 16)
+            val content = raw.copyOfRange(16, raw.size)
+            val secretKeySpec = SecretKeySpec(keyBytes, "AES")
+            val ivParameterSpec = IvParameterSpec(iv)
+            val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+            cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, ivParameterSpec)
+            val decrypted = cipher.doFinal(content)
+            JSONObject(String(decrypted, Charsets.UTF_8))
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
      * Analyzes any social media or direct video URL.
      */
     fun analyzeUrl(rawUrl: String): AnalyzedVideoMetadata? {
@@ -84,13 +114,45 @@ class VideoDownloadManager(private val context: Context) {
                 sanitized.endsWith(".webm", ignoreCase = true) ||
                 sanitized.endsWith(".mp3", ignoreCase = true)
 
-        val title = when {
+        var resolvedTitle: String? = null
+        var resolvedThumb: String? = null
+
+        // Fetch real metadata from oEmbed for YouTube
+        if (platform == "YouTube" || sanitized.contains("youtube.com") || sanitized.contains("youtu.be")) {
+            try {
+                val oembedUrl = "https://www.youtube.com/oembed?url=" + java.net.URLEncoder.encode(sanitized, "UTF-8") + "&format=json"
+                val oembedReq = Request.Builder()
+                    .url(oembedUrl)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                    .build()
+                val oembedResp = httpClient.newCall(oembedReq).execute()
+                if (oembedResp.isSuccessful) {
+                    val oembedJson = JSONObject(oembedResp.body?.string() ?: "{}")
+                    resolvedTitle = oembedJson.optString("title").takeIf { it.isNotBlank() }
+                    resolvedThumb = oembedJson.optString("thumbnail_url").takeIf { it.isNotBlank() }
+                }
+            } catch (_: Exception) {}
+        } else if (platform == "TikTok" || sanitized.contains("tiktok.com")) {
+            try {
+                val apiUrl = "https://www.tikwm.com/api/?url=" + java.net.URLEncoder.encode(sanitized, "UTF-8")
+                val req = Request.Builder().url(apiUrl).build()
+                val resp = httpClient.newCall(req).execute()
+                if (resp.isSuccessful) {
+                    val j = JSONObject(resp.body?.string() ?: "{}")
+                    val data = j.optJSONObject("data")
+                    resolvedTitle = data?.optString("title")?.take(80)?.takeIf { it.isNotBlank() }
+                    resolvedThumb = data?.optString("cover")?.takeIf { it.isNotBlank() }
+                }
+            } catch (_: Exception) {}
+        }
+
+        val title = resolvedTitle ?: when {
             isDirectMp4 -> {
                 val segment = sanitized.substringBefore("?").substringAfterLast("/").substringBeforeLast(".")
                 if (segment.isNotBlank()) segment.replace("_", " ").replace("-", " ").capitalizeWords()
                 else "Media Stream Video"
             }
-            platform == "YouTube" -> "YouTube Video ($sanitized)"
+            platform == "YouTube" -> "YouTube Video"
             platform == "TikTok" -> "TikTok Video (No Watermark)"
             platform == "Instagram" -> "Instagram Video"
             platform == "Twitter/X" -> "Twitter Video Highlight"
@@ -113,7 +175,8 @@ class VideoDownloadManager(private val context: Context) {
             durationText = "HD Quality",
             originalUrl = sanitized,
             downloadStreamUrl = streamUrl,
-            formats = formats
+            formats = formats,
+            thumbnailUrl = resolvedThumb
         )
     }
 
@@ -145,7 +208,7 @@ class VideoDownloadManager(private val context: Context) {
                 if (resp.isSuccessful) {
                     val bodyStr = resp.body?.string()
                     if (!bodyStr.isNullOrBlank()) {
-                        val json = org.json.JSONObject(bodyStr)
+                        val json = JSONObject(bodyStr)
                         if (json.optInt("code") == 0) {
                             val data = json.optJSONObject("data")
                             if (data != null) {
@@ -167,7 +230,7 @@ class VideoDownloadManager(private val context: Context) {
             }
         }
 
-        // 2. YouTube resolution via Savetube VIP & oEmbed
+        // 2. YouTube resolution via Savetube v2 AES engine
         if (platform == "YouTube" || originalUrl.contains("youtube.com") || originalUrl.contains("youtu.be")) {
             var resolvedTitle: String? = null
             try {
@@ -175,51 +238,75 @@ class VideoDownloadManager(private val context: Context) {
                 val oembedReq = Request.Builder().url(oembedUrl).build()
                 val oembedResp = httpClient.newCall(oembedReq).execute()
                 if (oembedResp.isSuccessful) {
-                    val oembedJson = org.json.JSONObject(oembedResp.body?.string() ?: "{}")
+                    val oembedJson = JSONObject(oembedResp.body?.string() ?: "{}")
                     resolvedTitle = oembedJson.optString("title").takeIf { it.isNotBlank() }
                 }
             } catch (_: Exception) {}
 
-            // Try Savetube API
             try {
-                val cdnList = listOf("cdn51.savetube.vip", "cdn52.savetube.vip", "cdn53.savetube.vip", "cdn54.savetube.vip")
-                for (cdn in cdnList) {
+                val cdnCandidates = mutableListOf<String>()
+                try {
+                    val randCdnReq = Request.Builder()
+                        .url("https://media.savetube.vip/api/random-cdn")
+                        .header("User-Agent", "Mozilla/5.0 (Linux; Android 14)")
+                        .build()
+                    val randResp = httpClient.newCall(randCdnReq).execute()
+                    if (randResp.isSuccessful) {
+                        val rJson = JSONObject(randResp.body?.string() ?: "")
+                        val fetchedCdn = rJson.optString("cdn")
+                        if (fetchedCdn.isNotBlank()) {
+                            cdnCandidates.add(fetchedCdn)
+                        }
+                    }
+                } catch (_: Exception) {}
+
+                cdnCandidates.addAll(listOf("cdn401.savetube.vip", "cdn402.savetube.vip", "cdn403.savetube.vip", "cdn404.savetube.vip"))
+
+                val jsonMediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
+
+                for (cdn in cdnCandidates.distinct()) {
                     try {
-                        val infoUrl = "https://$cdn/info?url=" + java.net.URLEncoder.encode(originalUrl, "UTF-8")
+                        val infoPayload = JSONObject().apply {
+                            put("url", originalUrl)
+                        }
                         val infoReq = Request.Builder()
-                            .url(infoUrl)
-                            .header("User-Agent", "Mozilla/5.0 (Linux; Android 14)")
+                            .url("https://$cdn/v2/info")
+                            .post(infoPayload.toString().toRequestBody(jsonMediaType))
+                            .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36")
                             .header("Referer", "https://save-tube.com/")
                             .build()
                         val infoResp = httpClient.newCall(infoReq).execute()
-                        if (infoResp.isSuccessful) {
-                            val infoBody = infoResp.body?.string() ?: ""
-                            val infoJson = org.json.JSONObject(infoBody)
-                            val data = infoJson.optJSONObject("data")
-                            val key = data?.optString("key") ?: infoJson.optString("key")
-                            if (!key.isNullOrBlank()) {
-                                val dlPayload = org.json.JSONObject().apply {
-                                    put("downloadType", if (format.id == "mp3") "audio" else "video")
-                                    put("quality", if (format.id == "mp3") "128" else format.resolution.replace("p", ""))
-                                    put("key", key)
-                                }
-                                val jsonMediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
-                                val requestBody = dlPayload.toString().toRequestBody(jsonMediaType)
-                                val dlReq = Request.Builder()
-                                    .url("https://$cdn/download")
-                                    .post(requestBody)
-                                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 14)")
-                                    .header("Referer", "https://save-tube.com/")
-                                    .build()
-                                val dlResp = httpClient.newCall(dlReq).execute()
-                                if (dlResp.isSuccessful) {
-                                    val dlJson = org.json.JSONObject(dlResp.body?.string() ?: "")
-                                    val dlUrl = dlJson.optJSONObject("data")?.optString("downloadUrl")
-                                        ?: dlJson.optString("downloadUrl")
-                                    if (!dlUrl.isNullOrBlank()) {
-                                        return Pair(dlUrl, resolvedTitle ?: data?.optString("title"))
-                                    }
-                                }
+                        if (!infoResp.isSuccessful) continue
+
+                        val infoBody = infoResp.body?.string() ?: ""
+                        val infoJson = JSONObject(infoBody)
+                        val encData = infoJson.optString("data")
+                        if (encData.isBlank()) continue
+
+                        val decodedInfo = decryptSavetubePayload(encData) ?: continue
+                        val key = decodedInfo.optString("key")
+                        val videoTitle = decodedInfo.optString("title").takeIf { it.isNotBlank() } ?: resolvedTitle
+                        if (key.isBlank()) continue
+
+                        val qualityVal = if (format.id == "mp3") "128" else format.resolution.replace("p", "")
+                        val dlPayload = JSONObject().apply {
+                            put("downloadType", if (format.id == "mp3") "audio" else "video")
+                            put("quality", qualityVal)
+                            put("key", key)
+                        }
+                        val dlReq = Request.Builder()
+                            .url("https://$cdn/download")
+                            .post(dlPayload.toString().toRequestBody(jsonMediaType))
+                            .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36")
+                            .header("Referer", "https://save-tube.com/")
+                            .build()
+                        val dlResp = httpClient.newCall(dlReq).execute()
+                        if (dlResp.isSuccessful) {
+                            val dlJson = JSONObject(dlResp.body?.string() ?: "")
+                            val dlUrl = dlJson.optJSONObject("data")?.optString("downloadUrl")
+                                ?: dlJson.optString("downloadUrl")
+                            if (!dlUrl.isNullOrBlank()) {
+                                return Pair(dlUrl, videoTitle)
                             }
                         }
                     } catch (_: Exception) {}
@@ -228,7 +315,7 @@ class VideoDownloadManager(private val context: Context) {
                 e.printStackTrace()
             }
 
-            // Try Invidious Public API for YouTube formats
+            // Fallback: Invidious / Piped public streaming API
             try {
                 val ytIdRegex = Regex("""(?:v=|/v/|youtu\.be/|/shorts/)([a-zA-Z0-9_-]{11})""")
                 val match = ytIdRegex.find(originalUrl)
@@ -243,7 +330,7 @@ class VideoDownloadManager(private val context: Context) {
                                 .build()
                             val invResp = httpClient.newCall(invReq).execute()
                             if (invResp.isSuccessful) {
-                                val invJson = org.json.JSONObject(invResp.body?.string() ?: "{}")
+                                val invJson = JSONObject(invResp.body?.string() ?: "{}")
                                 val streams = invJson.optJSONArray("formatStreams")
                                 if (streams != null && streams.length() > 0) {
                                     for (i in 0 until streams.length()) {
@@ -261,6 +348,7 @@ class VideoDownloadManager(private val context: Context) {
             } catch (_: Exception) {}
         }
 
+        // Return null if resolution could not find a stream - NEVER return dummy/sample media
         return Pair(null, null)
     }
 
@@ -369,14 +457,14 @@ class VideoDownloadManager(private val context: Context) {
             val galleryUri = GallerySaver.saveVideoToGallery(
                 context = context,
                 sourceFile = tempFile,
-                title = metadata.title,
+                title = finalTitle,
                 mimeType = selectedFormat.mimeType
             )
 
             _downloadState.value = DownloadState.Completed(
                 file = tempFile,
                 galleryUri = galleryUri,
-                title = metadata.title,
+                title = finalTitle,
                 quality = selectedFormat.label,
                 isEncrypted = false
             )

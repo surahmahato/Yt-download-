@@ -13,12 +13,14 @@ import com.example.data.network.VideoFormatOption
 import com.example.data.repository.VideoRepository
 import com.example.data.storage.GallerySaver
 import com.example.ui.components.VideoPlayingState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -33,6 +35,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _urlInput = MutableStateFlow("")
     val urlInput: StateFlow<String> = _urlInput.asStateFlow()
+
+    private val _isAnalyzing = MutableStateFlow(false)
+    val isAnalyzing: StateFlow<Boolean> = _isAnalyzing.asStateFlow()
 
     private val _analyzedMetadata = MutableStateFlow<AnalyzedVideoMetadata?>(null)
     val analyzedMetadata: StateFlow<AnalyzedVideoMetadata?> = _analyzedMetadata.asStateFlow()
@@ -94,15 +99,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        val result = downloadManager.analyzeUrl(input)
-        if (result == null) {
-            _errorMessage.value = "Invalid video URL. Please check the link and try again."
-            _analyzedMetadata.value = null
-            _selectedFormat.value = null
-        } else {
+        viewModelScope.launch {
+            _isAnalyzing.value = true
             _errorMessage.value = null
-            _analyzedMetadata.value = result
-            _selectedFormat.value = result.formats.firstOrNull()
+            val result = withContext(Dispatchers.IO) {
+                downloadManager.analyzeUrl(input)
+            }
+            _isAnalyzing.value = false
+            if (result == null) {
+                _errorMessage.value = "Invalid or unsupported video URL. Please check the link and try again."
+                _analyzedMetadata.value = null
+                _selectedFormat.value = null
+            } else {
+                _errorMessage.value = null
+                _analyzedMetadata.value = result
+                _selectedFormat.value = result.formats.firstOrNull()
+            }
         }
     }
 
@@ -111,19 +123,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun fastOneClickDownload(formatType: String) { // "hd" or "mp3"
-        val input = _urlInput.value.trim().ifEmpty {
-            "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+        val input = _urlInput.value.trim()
+        if (input.isEmpty()) {
+            _errorMessage.value = "Please paste or enter a video link first"
+            return
         }
-        _urlInput.value = input
-        val meta = downloadManager.analyzeUrl(input) ?: return
-        _analyzedMetadata.value = meta
-        val format = if (formatType == "mp3") {
-            meta.formats.firstOrNull { it.extension == "mp3" } ?: meta.formats.lastOrNull()
-        } else {
-            meta.formats.firstOrNull { it.resolution.contains("720") || it.resolution.contains("1080") } ?: meta.formats.firstOrNull()
-        } ?: return
-        _selectedFormat.value = format
         viewModelScope.launch {
+            _isAnalyzing.value = true
+            _errorMessage.value = null
+            val meta = withContext(Dispatchers.IO) {
+                downloadManager.analyzeUrl(input)
+            }
+            _isAnalyzing.value = false
+            if (meta == null) {
+                _errorMessage.value = "Could not parse video. Please verify the link is public and valid."
+                return@launch
+            }
+            _analyzedMetadata.value = meta
+            val format = if (formatType == "mp3") {
+                meta.formats.firstOrNull { it.extension == "mp3" } ?: meta.formats.lastOrNull()
+            } else {
+                meta.formats.firstOrNull { it.resolution.contains("720") || it.resolution.contains("1080") } ?: meta.formats.firstOrNull()
+            } ?: return@launch
+            _selectedFormat.value = format
             downloadManager.downloadVideo(meta, format)
         }
     }

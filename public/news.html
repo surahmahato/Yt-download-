@@ -1479,11 +1479,13 @@
         } catch (err) {
           console.error('Error fetching Google News:', err);
           showToast('Could not load latest news. Retrying...');
+          lastUpdatedLabel.textContent = 'Connection issue • Tap Refresh';
           if (allArticles.length === 0) {
             grid.innerHTML = `
-              <div class="news-empty-state" style="grid-column: 1 / -1;">
-                <h3 style="color:#ef4444;margin:0 0 6px 0;">News feed connection issue</h3>
-                <p style="margin:0;">Please check your internet connection or tap "Refresh Now".</p>
+              <div class="news-empty-state" style="grid-column: 1 / -1; text-align: center; padding: 40px 20px;">
+                <h3 style="color:#ef4444;margin:0 0 8px 0;font-size:18px;">News feed connection issue</h3>
+                <p style="margin:0 0 16px 0;color:#64748b;font-size:14px;">Please check your internet connection or tap the button below to reload headlines.</p>
+                <button type="button" onclick="window.fetchNews(true)" style="background:#2563eb;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;">⟳ Reload News</button>
               </div>
             `;
           }
@@ -1513,6 +1515,7 @@
       });
 
       // Initial load
+      window.fetchNews = fetchNews;
       fetchNews();
     })();
   </script>

@@ -7,6 +7,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.MainViewModel
+import com.example.ui.components.LaunchAnimationScreen
 import com.example.ui.components.NavScreen
 import com.example.ui.components.VideoPlayerDialog
 import com.example.ui.screens.DownloaderScreen
@@ -69,6 +74,7 @@ class MainActivity : ComponentActivity() {
 
                 val snackbarHostState = remember { SnackbarHostState() }
                 var currentScreen by remember { mutableStateOf(NavScreen.DOWNLOAD) }
+                var showLaunchAnimation by remember { mutableStateOf(true) }
 
                 BackHandler(enabled = currentScreen == NavScreen.GALLERY) {
                     currentScreen = NavScreen.DOWNLOAD
@@ -82,99 +88,114 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                Scaffold(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .testTag("main_scaffold"),
-                    topBar = {
-                        TopAppBar(
-                            title = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = MaterialTheme.colorScheme.primaryContainer,
-                                        modifier = Modifier.size(34.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                imageVector = if (currentScreen == NavScreen.GALLERY) Icons.Default.VideoLibrary else Icons.Default.Download,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(20.dp)
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Scaffold(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .testTag("main_scaffold"),
+                        topBar = {
+                            TopAppBar(
+                                title = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            modifier = Modifier.size(34.dp)
+                                        ) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Icon(
+                                                    imageVector = if (currentScreen == NavScreen.GALLERY) Icons.Default.VideoLibrary else Icons.Default.Download,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(
+                                                text = if (currentScreen == NavScreen.GALLERY) "Phone Gallery" else "YT Download",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Text(
+                                                text = if (currentScreen == NavScreen.GALLERY) "Saved in Movies/YT_Download" else "Direct Phone Gallery Downloader",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                fontSize = 11.sp
                                             )
                                         }
                                     }
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Column {
-                                        Text(
-                                            text = if (currentScreen == NavScreen.GALLERY) "Phone Gallery" else "YT Download",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = if (currentScreen == NavScreen.GALLERY) "Saved in Movies/YT_Download" else "Direct Phone Gallery Downloader",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontSize = 11.sp
-                                        )
+                                },
+                                navigationIcon = {
+                                    if (currentScreen == NavScreen.GALLERY) {
+                                        IconButton(
+                                            onClick = { currentScreen = NavScreen.DOWNLOAD },
+                                            modifier = Modifier.testTag("gallery_back_button")
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                                contentDescription = "Back to Downloader"
+                                            )
+                                        }
                                     }
-                                }
-                            },
-                            navigationIcon = {
-                                if (currentScreen == NavScreen.GALLERY) {
-                                    IconButton(
-                                        onClick = { currentScreen = NavScreen.DOWNLOAD },
-                                        modifier = Modifier.testTag("gallery_back_button")
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = "Back to Downloader"
-                                        )
+                                },
+                                actions = {
+                                    if (currentScreen == NavScreen.DOWNLOAD) {
+                                        IconButton(
+                                            onClick = { currentScreen = NavScreen.GALLERY },
+                                            modifier = Modifier.testTag("open_gallery_action_button")
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.VideoLibrary,
+                                                contentDescription = "View Saved Gallery",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                     }
-                                }
-                            },
-                            actions = {
-                                if (currentScreen == NavScreen.DOWNLOAD) {
-                                    IconButton(
-                                        onClick = { currentScreen = NavScreen.GALLERY },
-                                        modifier = Modifier.testTag("open_gallery_action_button")
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.VideoLibrary,
-                                            contentDescription = "View Saved Gallery",
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                }
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.surface
+                                },
+                                colors = TopAppBarDefaults.topAppBarColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                )
                             )
-                        )
-                    },
-                    snackbarHost = { SnackbarHost(snackbarHostState) }
-                ) { innerPadding ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                    ) {
-                        when (currentScreen) {
-                            NavScreen.DOWNLOAD -> DownloaderScreen(viewModel = viewModel)
-                            NavScreen.GALLERY -> GalleryScreen(
-                                viewModel = viewModel,
-                                onNavigateToDownloader = { currentScreen = NavScreen.DOWNLOAD }
-                            )
-                        }
+                        },
+                        snackbarHost = { SnackbarHost(snackbarHostState) }
+                    ) { innerPadding ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding)
+                        ) {
+                            when (currentScreen) {
+                                NavScreen.DOWNLOAD -> DownloaderScreen(viewModel = viewModel)
+                                NavScreen.GALLERY -> GalleryScreen(
+                                    viewModel = viewModel,
+                                    onNavigateToDownloader = { currentScreen = NavScreen.DOWNLOAD }
+                                )
+                            }
 
-                        // Video Player Dialog (In-app playback)
-                        activePlayingVideo?.let { playingState ->
-                            VideoPlayerDialog(
-                                playingState = playingState,
-                                onDismiss = { viewModel.closePlayer() }
-                            )
+                            // Video Player Dialog (In-app playback)
+                            activePlayingVideo?.let { playingState ->
+                                VideoPlayerDialog(
+                                    playingState = playingState,
+                                    onDismiss = { viewModel.closePlayer() }
+                                )
+                            }
                         }
+                    }
+
+                    // Awesome Launch Open Animation Overlay with Red & Blue branding on Light Pink Canvas
+                    AnimatedVisibility(
+                        visible = showLaunchAnimation,
+                        enter = fadeIn(),
+                        exit = fadeOut(animationSpec = tween(400))
+                    ) {
+                        LaunchAnimationScreen(
+                            onAnimationFinished = {
+                                showLaunchAnimation = false
+                            }
+                        )
                     }
                 }
             }

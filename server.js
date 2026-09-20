@@ -319,6 +319,21 @@ function parseGoogleNewsDescription(rawDesc, fallbackTitle, source) {
   };
 }
 
+// Clean and sanitize Google News snippets for cards
+function cleanGoogleNewsSnippet(snippet, title) {
+  if (!snippet) return title || 'Read the full coverage on Google News.';
+  // Strip all HTML tags and normalize spacing
+  let clean = snippet.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  clean = cleanHtml(clean);
+  if (title && clean.startsWith(title)) {
+    clean = clean.substring(title.length).replace(/^[\s:;,-]+/, '').trim();
+  }
+  if (!clean || clean.length < 10) {
+    return title || 'Read the full verified story and coverage on Google News.';
+  }
+  return clean.substring(0, 240);
+}
+
 // Helper: Parse Google News RSS Feed
 function parseGoogleNewsRss(xmlText, categoryId, categoryName) {
   const items = [];
@@ -918,8 +933,13 @@ const server = http.createServer(async (req, res) => {
     const forceRefresh = parsedUrl.query.refresh === '1' || parsedUrl.query.force === 'true';
 
     try {
-      if (forceRefresh) {
-        await refreshGoogleNews(true);
+      if (forceRefresh || newsState.articles.length === 0) {
+        await refreshGoogleNews(forceRefresh);
+      }
+
+      // If still empty, attempt to load from local cache file
+      if (newsState.articles.length === 0) {
+        initNewsCache();
       }
 
       let filteredArticles = newsState.articles;
@@ -960,7 +980,7 @@ const server = http.createServer(async (req, res) => {
         success: true,
         source: 'Google News',
         updateFrequency: 'Daily (Automatic)',
-        lastUpdated: newsState.lastUpdated,
+        lastUpdated: newsState.lastUpdated || new Date().toISOString(),
         nextScheduledUpdate: nextUpdateDate ? nextUpdateDate.toISOString() : null,
         totalArticles: articlesWithDynamicTime.length,
         selectedCategory: queryCategory,
@@ -969,8 +989,23 @@ const server = http.createServer(async (req, res) => {
       }));
     } catch (newsErr) {
       console.error('[News API Error]', newsErr.message);
-      res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-      res.end(JSON.stringify({ success: false, error: newsErr.message }));
+      if (newsState.articles.length === 0) {
+        initNewsCache();
+      }
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Access-Control-Allow-Origin': '*'
+      });
+      res.end(JSON.stringify({
+        success: true,
+        source: 'Google News',
+        updateFrequency: 'Daily (Automatic)',
+        lastUpdated: newsState.lastUpdated || new Date().toISOString(),
+        totalArticles: newsState.articles.length,
+        selectedCategory: queryCategory,
+        categories: newsState.categories,
+        articles: newsState.articles
+      }));
     }
     return;
   }

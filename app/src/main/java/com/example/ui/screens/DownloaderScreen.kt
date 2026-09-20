@@ -80,6 +80,7 @@ fun DownloaderScreen(
 ) {
     val context = LocalContext.current
     val urlInput by viewModel.urlInput.collectAsStateWithLifecycle()
+    val isAnalyzing by viewModel.isAnalyzing.collectAsStateWithLifecycle()
     val analyzedMetadata by viewModel.analyzedMetadata.collectAsStateWithLifecycle()
     val selectedFormat by viewModel.selectedFormat.collectAsStateWithLifecycle()
     val downloadState by viewModel.downloadState.collectAsStateWithLifecycle()
@@ -159,7 +160,7 @@ fun DownloaderScreen(
                         modifier = Modifier
                             .size(8.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFDC2626))
+                            .background(Color(0xFFEF4444))
                     )
                     Spacer(modifier = Modifier.width(5.dp))
                     Text(
@@ -219,49 +220,6 @@ fun DownloaderScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFFDB2777),
                         fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-
-        // Turbo Speed Indicator Banner (Website Matching Emerald Pulse)
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = Color(0xFF064E3B),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 6.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF10B981))
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "⚡ TURBO FAST ENGINE ACTIVE",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFFD1FAE5),
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFF10B981)
-                ) {
-                    Text(
-                        text = "Ultra Fast",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                     )
                 }
             }
@@ -354,6 +312,7 @@ fun DownloaderScreen(
 
                 Button(
                     onClick = { viewModel.analyzeCurrentUrl() },
+                    enabled = !isAnalyzing,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
@@ -361,13 +320,27 @@ fun DownloaderScreen(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "⚡ Fast Download",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (isAnalyzing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Analyzing Video...",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "⚡ Fast Download",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -495,18 +468,7 @@ fun DownloaderScreen(
             platforms.forEach { name ->
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.clickable {
-                        // Helpful template paste
-                        val sampleUrl = when (name) {
-                            "YouTube" -> "https://www.youtube.com/watch?v=aqz-KE-bpKQ"
-                            "TikTok" -> "https://www.tiktok.com/@creator/video/7183921938"
-                            "Instagram Reels" -> "https://www.instagram.com/reel/C89xYz7N2/"
-                            "Twitter / X" -> "https://x.com/tech_insider/status/17892182"
-                            else -> "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
-                        }
-                        viewModel.onUrlChanged(sampleUrl)
-                    }
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     Text(
                         text = name,
@@ -514,64 +476,6 @@ fun DownloaderScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Quick Test Media Samples (Direct 1-tap download testing)
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Speed,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Quick 1-Tap Test Samples (Public High-Speed CDN):",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            viewModel.onUrlChanged("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4")
-                            viewModel.analyzeCurrentUrl()
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("sample_blaze_button")
-                    ) {
-                        Text("🎬 1080p Clip", maxLines = 1, fontSize = 12.sp)
-                    }
-
-                    OutlinedButton(
-                        onClick = {
-                            viewModel.onUrlChanged("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4")
-                            viewModel.analyzeCurrentUrl()
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("sample_bunny_button")
-                    ) {
-                        Text("🐰 720p HD", maxLines = 1, fontSize = 12.sp)
-                    }
                 }
             }
         }
