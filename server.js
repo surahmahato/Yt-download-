@@ -5,6 +5,20 @@ const path = require('path');
 const url = require('url');
 const { createDecipheriv } = require('crypto');
 const { Readable } = require('stream');
+const { execFile, execSync } = require('child_process');
+
+let vredenScraper = null;
+try {
+  vredenScraper = require('@vreden/youtube_scraper');
+} catch (e) {
+  console.warn('[@vreden/youtube_scraper load warning]:', e.message);
+}
+
+const YT_DLP_BIN = fs.existsSync(path.join(__dirname, 'bin', 'yt-dlp'))
+  ? path.join(__dirname, 'bin', 'yt-dlp')
+  : (fs.existsSync('/usr/local/bin/yt-dlp') ? '/usr/local/bin/yt-dlp' : 'yt-dlp');
+
+const NODE_BIN = process.execPath || '/usr/local/bin/node';
 
 // Graceful error handling so server never crashes unexpectedly
 process.on('uncaughtException', (err) => {
@@ -35,6 +49,96 @@ const MIME_TYPES = {
 };
 
 // Built-in HTTP fetch helper with timeout (replaces external axios)
+// -------------------------------------------------------------
+// DEFENSIVE SECURITY ENGINE (RATE LIMITING, SSRF, SANITIZATION)
+// -------------------------------------------------------------
+const ipRateLimits = new Map();
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.socket?.remoteAddress || '127.0.0.1';
+}
+
+function checkRateLimit(clientIp, maxRequests = 60, windowMs = 60000) {
+  const now = Date.now();
+  let record = ipRateLimits.get(clientIp);
+  if (!record || (now - record.startTime) > windowMs) {
+    record = { count: 1, startTime: now };
+    ipRateLimits.set(clientIp, record);
+    return true;
+  }
+  record.count++;
+  return record.count <= maxRequests;
+}
+
+// Garbage-collect expired rate limit records periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of ipRateLimits.entries()) {
+    if (now - record.startTime > 120000) {
+      ipRateLimits.delete(ip);
+    }
+  }
+}, 300000);
+
+// Strict SSRF & safe URL validation
+function isSafePublicUrl(inputUrl) {
+  try {
+    const parsed = new URL(inputUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return false;
+    }
+    if (parsed.port && parsed.port !== '80' && parsed.port !== '443') {
+      return false;
+    }
+    const hostname = parsed.hostname.toLowerCase();
+    if (!hostname || hostname === 'localhost' || hostname.endsWith('.local') || hostname.endsWith('.internal')) {
+      return false;
+    }
+    // Block IPv4 private/loopback/cloud metadata ranges
+    const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (ipv4Match) {
+      const a = Number(ipv4Match[1]);
+      const b = Number(ipv4Match[2]);
+      if (a === 127 || a === 0) return false; // Loopback
+      if (a === 10) return false; // 10.0.0.0/8
+      if (a === 172 && b >= 16 && b <= 31) return false; // 172.16.0.0/12
+      if (a === 192 && b === 168) return false; // 192.168.0.0/16
+      if (a === 169 && b === 254) return false; // 169.254.0.0/16 Link-local/metadata
+      if (a >= 224) return false; // Multicast/reserved
+    }
+    // Block IPv6 formats
+    if (hostname.includes(':') || hostname.startsWith('[') || hostname === '::1') {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeAndValidateUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return null;
+  const trimmed = rawUrl.trim();
+  if (trimmed.length > 2048) return null; // Prevent buffer/ReDoS attacks
+  if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) return null;
+  if (!isSafePublicUrl(trimmed)) return null;
+  return trimmed;
+}
+
+function applyDefensiveSecurityHeaders(res) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=(), payment=()');
+  res.removeHeader('X-Powered-By');
+  res.removeHeader('Server');
+}
+
 async function fetchJson(targetUrl, options = {}) {
   const timeoutMs = options.timeout || 12000;
   const controller = new AbortController();
@@ -393,12 +497,13 @@ function parseGoogleNewsRss(xmlText, categoryId, categoryName) {
   return items;
 }
 
-// Update News from Google News
+// Update News from Google News (Auto-refreshes every 20 minutes)
+const NEWS_REFRESH_INTERVAL_MS = 20 * 60 * 1000; // 20 minutes
+
 async function refreshGoogleNews(force = false) {
-  const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
   if (!force && newsState.lastUpdated) {
     const elapsed = Date.now() - new Date(newsState.lastUpdated).getTime();
-    if (elapsed < TWENTY_FOUR_HOURS && newsState.articles.length > 0) {
+    if (elapsed < NEWS_REFRESH_INTERVAL_MS && newsState.articles.length > 0) {
       return newsState;
     }
   }
@@ -408,7 +513,7 @@ async function refreshGoogleNews(force = false) {
   }
 
   newsState.isUpdating = true;
-  console.log('[Google News] Fetching daily news update from Google...');
+  console.log('[Google News] Fetching fresh news update from Google (20-min cycle)...');
 
   try {
     const allArticles = [];
@@ -458,7 +563,7 @@ async function refreshGoogleNews(force = false) {
         console.warn('[Google News] Could not write cache file:', e.message);
       }
 
-      console.log(`[Google News] Successfully updated ${allArticles.length} recent articles. Next update in 24 hours.`);
+      console.log(`[Google News] Successfully updated ${allArticles.length} recent articles. Next update in 20 minutes.`);
     }
   } catch (err) {
     console.error('[Google News] Error updating news:', err.message);
@@ -511,10 +616,10 @@ function initNewsCache() {
   // Initial fetch or refresh
   refreshGoogleNews().catch(err => console.error('[Google News] Startup fetch error:', err.message));
 
-  // Schedule daily automatic update check every 30 minutes
+  // Schedule automatic update check every 20 minutes
   setInterval(() => {
     refreshGoogleNews(false).catch(err => console.error('[Google News] Periodic check error:', err.message));
-  }, 30 * 60 * 1000);
+  }, 20 * 60 * 1000);
 }
 initNewsCache();
 
@@ -585,6 +690,396 @@ function decodeSavetubeData(enc) {
   }
 }
 
+// -------------------------------------------------------------
+// UNIVERSAL VIDEO & STREAM EXTRACTION ENGINE
+// -------------------------------------------------------------
+
+function extractWithYtDlp(url, quality = '720', type = 'video') {
+  return new Promise((resolve, reject) => {
+    if (!fs.existsSync(YT_DLP_BIN)) {
+      return reject(new Error('yt-dlp binary not available'));
+    }
+    const qNum = parseInt(quality, 10) || 720;
+    const formatArg = type === 'audio'
+      ? 'bestaudio[ext=m4a]/bestaudio/best'
+      : `best[height<=${qNum}][ext=mp4]/18/best[ext=mp4]/best`;
+
+    // Strategy 1: Rich JSON metadata extraction
+    const jsonArgs = [
+      '--js-runtimes', `node:${NODE_BIN}`,
+      '--no-playlist',
+      '--no-warnings',
+      '--dump-single-json',
+      url
+    ];
+
+    execFile(YT_DLP_BIN, jsonArgs, { maxBuffer: 15 * 1024 * 1024, timeout: 20000 }, (err, stdout) => {
+      if (!err && stdout) {
+        try {
+          const data = JSON.parse(stdout);
+          let chosenUrl = null;
+          if (Array.isArray(data.formats) && data.formats.length > 0) {
+            if (type === 'audio') {
+              const audioOnly = data.formats.filter(f => f.url && (f.acodec !== 'none' || f.vcodec === 'none'));
+              const bestAudio = audioOnly.find(f => f.ext === 'm4a' || f.ext === 'mp3') || audioOnly[audioOnly.length - 1];
+              if (bestAudio && bestAudio.url) chosenUrl = bestAudio.url;
+            } else {
+              // Look for combined audio+video progressive MP4 format
+              const progMp4 = data.formats.filter(f => f.url && f.vcodec !== 'none' && f.acodec !== 'none' && f.ext === 'mp4');
+              const exactOrLower = progMp4.filter(f => f.height && f.height <= qNum).pop() || progMp4[0];
+              if (exactOrLower && exactOrLower.url) {
+                chosenUrl = exactOrLower.url;
+              } else {
+                const anyMp4 = data.formats.filter(f => f.url && f.ext === 'mp4').pop();
+                if (anyMp4 && anyMp4.url) chosenUrl = anyMp4.url;
+              }
+            }
+          }
+          if (!chosenUrl && data.url) chosenUrl = data.url;
+
+          if (chosenUrl) {
+            const dur = data.duration || 60;
+            const durLabel = data.duration_string || `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`;
+            return resolve({
+              downloadUrl: chosenUrl,
+              title: data.title || 'Video Media',
+              thumbnail: data.thumbnail || '',
+              duration: dur,
+              durationLabel: durLabel,
+              author: data.uploader || data.channel || 'Creator',
+              platform: data.extractor_key || data.extractor || 'Web Video'
+            });
+          }
+        } catch (pe) {
+          // JSON parsing failed, proceed to fallback
+        }
+      }
+
+      // Strategy 2: Direct stream extraction via -g
+      const gArgs = [
+        '--js-runtimes', `node:${NODE_BIN}`,
+        '--no-playlist',
+        '--no-warnings',
+        '-g',
+        '-f', formatArg,
+        url
+      ];
+      execFile(YT_DLP_BIN, gArgs, { timeout: 15000 }, (gErr, gStdout) => {
+        if (!gErr && gStdout && gStdout.trim()) {
+          const directUrl = gStdout.trim().split('\n')[0];
+          if (directUrl && directUrl.startsWith('http')) {
+            return resolve({
+              downloadUrl: directUrl,
+              title: 'Playable Video Stream',
+              thumbnail: '',
+              duration: 120,
+              durationLabel: '02:00',
+              author: 'Media Video',
+              platform: 'Web Video'
+            });
+          }
+        }
+        reject(err || gErr || new Error('yt-dlp could not extract stream for link'));
+      });
+    });
+  });
+}
+
+async function extractTikTok(url) {
+  // Method 1: TikMate API
+  try {
+    const postBody = new URLSearchParams({ url }).toString();
+    const res = await fetch('https://api.tikmate.app/api/lookup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      body: postBody,
+      signal: AbortSignal.timeout(6000)
+    });
+    if (res.ok) {
+      const j = await res.json();
+      if (j && j.success && j.id && j.token) {
+        return {
+          id: j.id,
+          title: j.desc || (j.author_name ? `${j.author_name} TikTok Video` : 'TikTok Video (No Watermark)'),
+          thumbnail: j.cover || j.dynamic_cover || '',
+          duration: 30,
+          durationLabel: '0:30',
+          directVideo: `https://tikmate.app/download/${j.id}/${j.token}.mp4`,
+          author: j.author_name || 'TikTok Creator',
+          platform: 'TikTok'
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('[TikTok TikMate lookup warning]:', e.message);
+  }
+
+  // Method 2: TikWM API
+  try {
+    const tikRes = await fetchJson(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+      timeout: 6000
+    });
+    if (tikRes && tikRes.code === 0 && tikRes.data) {
+      const d = tikRes.data;
+      const dur = d.duration || 30;
+      return {
+        id: d.id || `tiktok_${Date.now()}`,
+        title: d.title ? d.title.substring(0, 100).replace(/[\r\n]+/g, ' ') : 'TikTok Video (No Watermark)',
+        thumbnail: d.cover || d.origin_cover || '',
+        duration: dur,
+        durationLabel: `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`,
+        directVideo: d.play || d.wmplay,
+        directAudio: d.music || d.play,
+        author: d.author ? (d.author.nickname || d.author.unique_id) : 'TikTok Creator',
+        platform: 'TikTok'
+      };
+    }
+  } catch (e) {
+    console.warn('[TikTok TikWM lookup warning]:', e.message);
+  }
+
+  // Method 3: yt-dlp fallback
+  try {
+    const ytRes = await extractWithYtDlp(url, '720', 'video');
+    if (ytRes && ytRes.downloadUrl) {
+      return {
+        id: `tiktok_${Date.now()}`,
+        title: ytRes.title || 'TikTok Video',
+        thumbnail: ytRes.thumbnail || '',
+        duration: ytRes.duration || 30,
+        durationLabel: ytRes.durationLabel || '0:30',
+        directVideo: ytRes.downloadUrl,
+        author: ytRes.author || 'TikTok Creator',
+        platform: 'TikTok'
+      };
+    }
+  } catch (e) {}
+
+  return null;
+}
+
+async function extractUniversalVideo(rawUrl, quality = '720', type = 'video') {
+  const cleanUrl = (rawUrl || '').trim();
+  if (!cleanUrl) {
+    throw new Error('Empty URL provided');
+  }
+
+  // Tier 1: Direct media stream or file (.mp4, .webm, .mkv, .mov, .mp3, etc.)
+  if (/\.(mp4|webm|mkv|mov|avi|flv|m4v|mp3|m4a|wav|aac)(\?.*)?$/i.test(cleanUrl) || cleanUrl.includes('.googlevideo.com/videoplayback')) {
+    const filenameSegment = cleanUrl.split('?')[0].split('/').pop() || 'media_video.mp4';
+    const isAudio = /\.(mp3|m4a|wav|aac)$/i.test(filenameSegment) || type === 'audio';
+    const cleanTitle = filenameSegment.replace(/[^a-zA-Z0-9._-]/g, ' ').replace(/\.[^/.]+$/, '').trim() || 'Media Video';
+    return {
+      downloadUrl: cleanUrl,
+      title: cleanTitle,
+      thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
+      duration: 120,
+      durationLabel: '02:00',
+      author: 'Direct Media Source',
+      platform: 'Direct Stream',
+      quality: isAudio ? '320kbps' : `${quality}p`,
+      type: isAudio ? 'audio' : 'video'
+    };
+  }
+
+  // Tier 2: TikTok videos
+  const isTikTok = cleanUrl.toLowerCase().includes('tiktok.com');
+  if (isTikTok) {
+    const tt = await extractTikTok(cleanUrl);
+    if (tt && tt.directVideo) {
+      return {
+        downloadUrl: type === 'audio' && tt.directAudio ? tt.directAudio : tt.directVideo,
+        title: tt.title,
+        thumbnail: tt.thumbnail || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=600&auto=format&fit=crop&q=80',
+        duration: tt.duration,
+        durationLabel: tt.durationLabel,
+        author: tt.author,
+        platform: 'TikTok',
+        quality: type === 'audio' ? 'MP3' : 'HD',
+        type: type
+      };
+    }
+  }
+
+  // Tier 3: High-power yt-dlp Universal Extractor (YouTube, Instagram, Twitter/X, Facebook, Reddit, Vimeo, Dailymotion, Soundcloud, etc.)
+  try {
+    const ytdlRes = await extractWithYtDlp(cleanUrl, quality, type);
+    if (ytdlRes && ytdlRes.downloadUrl) {
+      return {
+        ...ytdlRes,
+        quality: type === 'audio' ? `${quality}kbps` : `${quality}p`,
+        type: type
+      };
+    }
+  } catch (ytdlErr) {
+    console.warn('[yt-dlp extract warning]:', ytdlErr.message);
+  }
+
+  // Tier 4: YouTube scraper library fallback (@vreden/youtube_scraper)
+  const isYouTube = cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be');
+  if (isYouTube && vredenScraper) {
+    try {
+      if (type === 'audio' && typeof vredenScraper.ytmp3 === 'function') {
+        const mp3Res = await vredenScraper.ytmp3(cleanUrl);
+        if (mp3Res && mp3Res.download && mp3Res.download.url) {
+          return {
+            downloadUrl: mp3Res.download.url,
+            title: (mp3Res.metadata && mp3Res.metadata.title) || 'YouTube Audio',
+            thumbnail: (mp3Res.metadata && (mp3Res.metadata.thumbnail || mp3Res.metadata.image)) || '',
+            duration: (mp3Res.metadata && mp3Res.metadata.seconds) || 180,
+            durationLabel: (mp3Res.metadata && mp3Res.metadata.timestamp) || '03:00',
+            author: (mp3Res.metadata && mp3Res.metadata.author && mp3Res.metadata.author.name) || 'YouTube Artist',
+            platform: 'YouTube',
+            quality: '320kbps',
+            type: 'audio'
+          };
+        }
+      } else if (typeof vredenScraper.ytmp4 === 'function') {
+        const mp4Res = await vredenScraper.ytmp4(cleanUrl);
+        if (mp4Res && mp4Res.download && mp4Res.download.url) {
+          return {
+            downloadUrl: mp4Res.download.url,
+            title: (mp4Res.metadata && mp4Res.metadata.title) || 'YouTube Video',
+            thumbnail: (mp4Res.metadata && (mp4Res.metadata.thumbnail || mp4Res.metadata.image)) || '',
+            duration: (mp4Res.metadata && mp4Res.metadata.seconds) || 180,
+            durationLabel: (mp4Res.metadata && mp4Res.metadata.timestamp) || '03:00',
+            author: (mp4Res.metadata && mp4Res.metadata.author && mp4Res.metadata.author.name) || 'YouTube Creator',
+            platform: 'YouTube',
+            quality: `${quality}p`,
+            type: 'video'
+          };
+        }
+      }
+    } catch (ve) {
+      console.warn('[@vreden/youtube_scraper warning]:', ve.message);
+    }
+  }
+
+  // Tier 5: SaveTube API fallback for YouTube
+  if (isYouTube) {
+    try {
+      const normalizedUrl = normalizeVideoUrl(cleanUrl);
+      const cdnRes = await fetchJson('https://media.savetube.vip/api/random-cdn', { timeout: 5000 });
+      const cdn = cdnRes && cdnRes.cdn ? cdnRes.cdn : 'cdn403.savetube.vip';
+      const infoRes = await postJson(`https://${cdn}/v2/info`, { url: normalizedUrl }, {
+        headers: { 'Referer': 'https://save-tube.com/', 'User-Agent': 'Mozilla/5.0' },
+        timeout: 6000
+      });
+      if (infoRes && infoRes.data) {
+        const info = decodeSavetubeData(infoRes.data);
+        const dlRes = await postJson(`https://${cdn}/download`, {
+          downloadType: type === 'audio' ? 'audio' : 'video',
+          quality: quality.toString(),
+          key: info.key
+        }, {
+          headers: { 'Referer': 'https://save-tube.com/', 'User-Agent': 'Mozilla/5.0' },
+          timeout: 8000
+        });
+        if (dlRes && dlRes.data && dlRes.data.downloadUrl) {
+          return {
+            downloadUrl: dlRes.data.downloadUrl,
+            title: info.title || 'YouTube Video',
+            thumbnail: info.thumbnail || '',
+            duration: info.duration || 180,
+            durationLabel: info.durationLabel || '03:00',
+            author: info.author || 'Creator',
+            platform: 'YouTube',
+            quality: `${quality}p`,
+            type: type
+          };
+        }
+      }
+    } catch (se) {
+      console.warn('[SaveTube fallback warning]:', se.message);
+    }
+  }
+
+  // Tier 6: Invidious public instances for YouTube
+  if (isYouTube) {
+    const ytMatch = cleanUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || cleanUrl.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/) || cleanUrl.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+    const videoId = ytMatch ? ytMatch[1] : null;
+    if (videoId) {
+      const invidiousHosts = ['inv.nadeko.net', 'yewtu.be', 'vid.puffyan.us'];
+      for (const host of invidiousHosts) {
+        try {
+          const invRes = await fetchJson(`https://${host}/api/v1/videos/${videoId}`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+            timeout: 5000
+          });
+          if (invRes && Array.isArray(invRes.formatStreams) && invRes.formatStreams.length > 0) {
+            const stream = invRes.formatStreams.find(s => s.url) || invRes.formatStreams[0];
+            if (stream && stream.url) {
+              return {
+                downloadUrl: stream.url,
+                title: invRes.title || 'YouTube Video',
+                thumbnail: (invRes.videoThumbnails && invRes.videoThumbnails[0] && invRes.videoThumbnails[0].url) || '',
+                duration: invRes.lengthSeconds || 180,
+                durationLabel: `${Math.floor((invRes.lengthSeconds || 180) / 60)}:${String((invRes.lengthSeconds || 180) % 60).padStart(2, '0')}`,
+                author: invRes.author || 'Creator',
+                platform: 'YouTube',
+                quality: `${quality}p`,
+                type: type
+              };
+            }
+          }
+        } catch (ie) {}
+      }
+    }
+  }
+
+  // Tier 7: Universal OpenGraph & HTML5 Video Tag Scraper (any website)
+  try {
+    const pageRes = await fetch(cleanUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      },
+      signal: AbortSignal.timeout(6000)
+    });
+    if (pageRes.ok) {
+      const html = await pageRes.text();
+      const titleMatch = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i) ||
+                         html.match(/<title>([^<]+)<\/title>/i);
+      const pageTitle = titleMatch ? titleMatch[1].trim() : 'Media Video';
+
+      const thumbMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
+      const pageThumb = thumbMatch ? thumbMatch[1] : '';
+
+      const ogVidMatch = html.match(/<meta\s+property=["']og:video(?::secure_url|:url)?["']\s+content=["']([^"']+)["']/i) ||
+                         html.match(/<meta\s+name=["']twitter:player:stream["']\s+content=["']([^"']+)["']/i) ||
+                         html.match(/<video[^>]+src=["']([^"']+)["']/i) ||
+                         html.match(/<source[^>]+src=["']([^"']+\.mp4[^"']*)["']/i) ||
+                         html.match(/"contentUrl"\s*:\s*"([^"]+)"/i);
+
+      if (ogVidMatch && ogVidMatch[1]) {
+        let rawStream = ogVidMatch[1];
+        if (rawStream.startsWith('//')) rawStream = 'https:' + rawStream;
+        else if (rawStream.startsWith('/')) rawStream = new URL(rawStream, cleanUrl).href;
+
+        return {
+          downloadUrl: rawStream,
+          title: pageTitle,
+          thumbnail: pageThumb,
+          duration: 60,
+          durationLabel: '01:00',
+          author: 'Web Media',
+          platform: 'Web',
+          quality: `${quality}p`,
+          type: type
+        };
+      }
+    }
+  } catch (he) {
+    console.warn('[HTML Scraper warning]:', he.message);
+  }
+
+  throw new Error('Unable to extract direct download stream for this link. Please ensure the link is public and accessible.');
+}
+
 async function fetchVideoInfo(rawUrl) {
   const cached = getCached(`info_${rawUrl}`);
   if (cached) {
@@ -593,145 +1088,92 @@ async function fetchVideoInfo(rawUrl) {
 
   const isTikTok = rawUrl.toLowerCase().includes('tiktok.com');
   const isInstagram = rawUrl.toLowerCase().includes('instagram.com');
+  const isYouTube = rawUrl.includes('youtube.com') || rawUrl.includes('youtu.be');
 
-  if (isTikTok) {
-    try {
-      const tikRes = await fetchJson(`https://www.tikwm.com/api/?url=${encodeURIComponent(rawUrl)}`, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-        timeout: 7000
-      });
-      if (tikRes && tikRes.code === 0 && tikRes.data) {
-        const d = tikRes.data;
-        const dur = d.duration || 30;
-        const durLabel = `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`;
-        const result = {
-          info: {
-            id: d.id || `tiktok_${Date.now()}`,
-            title: d.title ? d.title.substring(0, 100).replace(/[\r\n]+/g, ' ') : 'TikTok Video (No Watermark)',
-            thumbnail: d.cover || d.origin_cover || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=600&auto=format&fit=crop&q=80',
-            duration: dur,
-            durationLabel: durLabel,
-            directVideo: d.play || d.wmplay,
-            directAudio: d.music || d.play,
-            key: 'tiktok',
-            isTikTok: true,
-            isSocial: true,
-            platform: 'TikTok',
-            originalUrl: rawUrl
-          },
-          cdn: 'tiktok',
-          normalizedUrl: rawUrl
-        };
-        setCache(`info_${rawUrl}`, result);
-        return result;
-      }
-    } catch (tikErr) {
-      console.warn('TikWM fetch failed, falling back:', tikErr.message);
-    }
-
-    const fallbackTikTok = {
-      info: {
-        id: `tiktok_${Date.now()}`,
-        title: 'TikTok Video (No Watermark)',
-        thumbnail: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=600&auto=format&fit=crop&q=80',
-        duration: 30,
-        durationLabel: '0:30',
-        key: 'social_key',
-        isSocial: true,
-        platform: 'TikTok',
-        originalUrl: rawUrl
-      },
-      cdn: 'social',
-      normalizedUrl: rawUrl
-    };
-    setCache(`info_${rawUrl}`, fallbackTikTok);
-    return fallbackTikTok;
-  }
-
-  if (isInstagram) {
-    const fallbackIg = {
-      info: {
-        id: `insta_${Date.now()}`,
-        title: 'Instagram Reel (Full HD)',
-        thumbnail: 'https://images.unsplash.com/photo-1611262588024-d12430b98920?w=600&auto=format&fit=crop&q=80',
-        duration: 30,
-        durationLabel: '0:30',
-        key: 'social_key',
-        isSocial: true,
-        platform: 'Instagram',
-        originalUrl: rawUrl
-      },
-      cdn: 'social',
-      normalizedUrl: rawUrl
-    };
-    setCache(`info_${rawUrl}`, fallbackIg);
-    return fallbackIg;
-  }
-
-  const normalizedUrl = normalizeVideoUrl(rawUrl);
-
+  // Attempt universal extraction for instant metadata and stream caching
   try {
-    const cdnRes = await fetchJson('https://media.savetube.vip/api/random-cdn', {
-      timeout: 6000
-    });
-    const cdn = cdnRes && cdnRes.cdn ? cdnRes.cdn : 'cdn403.savetube.vip';
-
-    const infoRes = await postJson(`https://${cdn}/v2/info`, {
-      url: normalizedUrl
-    }, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36',
-        'Referer': 'https://save-tube.com/'
-      },
-      timeout: 8000
-    });
-
-    if (infoRes && infoRes.data) {
-      const info = decodeSavetubeData(infoRes.data);
-      const result = { info, cdn, normalizedUrl };
+    const extracted = await extractUniversalVideo(rawUrl, '720', 'video');
+    if (extracted) {
+      const result = {
+        info: {
+          id: `media_${Date.now()}`,
+          title: extracted.title || 'Video Media',
+          thumbnail: extracted.thumbnail || (isInstagram ? 'https://images.unsplash.com/photo-1611262588024-d12430b98920?w=600&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80'),
+          duration: extracted.duration || 60,
+          durationLabel: extracted.durationLabel || '01:00',
+          directVideo: extracted.downloadUrl,
+          author: extracted.author || 'Creator',
+          platform: extracted.platform || (isYouTube ? 'YouTube' : (isTikTok ? 'TikTok' : (isInstagram ? 'Instagram' : 'Web Video'))),
+          key: `key_${Date.now()}`,
+          isSocial: !isYouTube,
+          originalUrl: rawUrl
+        },
+        cdn: 'universal',
+        normalizedUrl: rawUrl
+      };
       setCache(`info_${rawUrl}`, result);
       return result;
     }
-  } catch (savetubeErr) {
-    console.warn('Savetube metadata fetch failed, trying fast oEmbed fallback:', savetubeErr.message);
+  } catch (extractErr) {
+    console.warn('[fetchVideoInfo universal extract fallback]:', extractErr.message);
   }
 
-  // Fallback YouTube metadata resolution via oEmbed
-  const ytMatch = normalizedUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
-  const ytId = ytMatch ? ytMatch[1] : 'video_fallback';
-  let ytTitle = 'YouTube Video (High Definition)';
-  let ytAuthor = 'Creator';
-  let ytThumb = `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
+  // Fast YouTube oEmbed metadata fallback
+  if (isYouTube) {
+    const ytMatch = rawUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || rawUrl.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/) || rawUrl.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+    const ytId = ytMatch ? ytMatch[1] : `yt_${Date.now()}`;
+    let ytTitle = 'YouTube Video (High Definition)';
+    let ytAuthor = 'YouTube Creator';
+    let ytThumb = `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
 
-  try {
-    const oembedRes = await fetchJson(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`, {
-      timeout: 4000
-    });
-    if (oembedRes && oembedRes.title) {
-      ytTitle = oembedRes.title;
-      ytAuthor = oembedRes.author_name || ytAuthor;
-      ytThumb = oembedRes.thumbnail_url || ytThumb;
-    }
-  } catch (e) {}
+    try {
+      const oembedRes = await fetchJson(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`, { timeout: 4000 });
+      if (oembedRes && oembedRes.title) {
+        ytTitle = oembedRes.title;
+        ytAuthor = oembedRes.author_name || ytAuthor;
+        ytThumb = oembedRes.thumbnail_url || ytThumb;
+      }
+    } catch (e) {}
 
-  const fallbackResult = {
+    const result = {
+      info: {
+        id: ytId,
+        title: ytTitle,
+        author: ytAuthor,
+        thumbnail: ytThumb,
+        duration: 180,
+        durationLabel: '03:00',
+        key: ytId,
+        isSocial: false,
+        platform: 'YouTube',
+        originalUrl: rawUrl
+      },
+      cdn: 'universal',
+      normalizedUrl: rawUrl
+    };
+    setCache(`info_${rawUrl}`, result);
+    return result;
+  }
+
+  // Generic fallback info
+  const fallbackInfo = {
     info: {
-      id: ytId,
-      title: ytTitle,
-      author: ytAuthor,
-      thumbnail: ytThumb,
-      duration: 180,
-      durationLabel: '03:00',
-      key: ytId,
-      isSocial: false,
-      platform: 'YouTube',
+      id: `media_${Date.now()}`,
+      title: isInstagram ? 'Instagram Video Reel' : (isTikTok ? 'TikTok Video' : 'Online Video Stream'),
+      thumbnail: isInstagram ? 'https://images.unsplash.com/photo-1611262588024-d12430b98920?w=600&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
+      duration: 60,
+      durationLabel: '01:00',
+      author: 'Creator',
+      platform: isInstagram ? 'Instagram' : (isTikTok ? 'TikTok' : 'Web Video'),
+      key: `media_${Date.now()}`,
+      isSocial: true,
       originalUrl: rawUrl
     },
-    cdn: 'cdn403.savetube.vip',
-    normalizedUrl
+    cdn: 'universal',
+    normalizedUrl: rawUrl
   };
-  setCache(`info_${rawUrl}`, fallbackResult);
-  return fallbackResult;
+  setCache(`info_${rawUrl}`, fallbackInfo);
+  return fallbackInfo;
 }
 
 async function requestDownloadLink(cdn, info, quality, type) {
@@ -746,120 +1188,71 @@ async function requestDownloadLink(cdn, info, quality, type) {
     .replace(/[^\w\s.-]/gi, '')
     .trim()
     .replace(/\s+/g, '_')
-    .substring(0, 60);
+    .substring(0, 60) || 'media_download';
   const ext = type === 'audio' ? 'mp3' : 'mp4';
 
-  if (info.isSocial) {
-    if (info.directVideo && type !== 'audio') {
-      const res = {
-        success: true,
-        downloadUrl: info.directVideo,
-        filename: `${cleanTitle}_HD.${ext}`,
-        title: info.title,
-        duration: info.durationLabel,
-        thumbnail: info.thumbnail,
-        quality: 'HD',
-        type: 'video'
-      };
-      setCache(cacheKey, res);
-      return res;
-    }
-  }
-
-  try {
-    const dlRes = await postJson(`https://${cdn}/download`, {
-      downloadType: type === 'audio' ? 'audio' : 'video',
-      quality: qualityStr,
-      key: info.key
-    }, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36',
-        'Referer': 'https://save-tube.com/'
-      },
-      timeout: 12000
-    });
-
-    if (dlRes && dlRes.data && dlRes.data.downloadUrl) {
-      const res = {
-        success: true,
-        downloadUrl: dlRes.data.downloadUrl,
-        filename: `${cleanTitle}_${qualityStr}${type === 'audio' ? 'kbps' : 'p'}.${ext}`,
-        title: info.title,
-        duration: info.durationLabel || `${Math.floor(info.duration / 60)}:${(info.duration % 60).toString().padStart(2, '0')}`,
-        thumbnail: info.thumbnail,
-        quality: `${qualityStr}${type === 'audio' ? 'kbps' : 'p'}`,
-        type: type
-      };
-      setCache(cacheKey, res);
-      return res;
-    }
-  } catch (savetubeErr) {
-    console.warn('Savetube download call error:', savetubeErr.message);
-  }
-
-  if (Array.isArray(info.video_formats)) {
-    const anyDirect = info.video_formats.find(f => f.url && f.url.startsWith('http'));
-    if (anyDirect) {
-      const res = {
-        success: true,
-        downloadUrl: anyDirect.url,
-        filename: `${cleanTitle}_${qualityStr}p.mp4`,
-        title: info.title,
-        duration: info.durationLabel || 'Full',
-        thumbnail: info.thumbnail,
-        quality: `${qualityStr}p`,
-        type: type
-      };
-      setCache(cacheKey, res);
-      return res;
-    }
-  }
-
-  // Direct video or progressive stream check
-  if (info.directVideo) {
+  // If info already holds a direct video matching the request
+  if (info.directVideo && type !== 'audio') {
     const res = {
       success: true,
       downloadUrl: info.directVideo,
       filename: `${cleanTitle}_${qualityStr}p.${ext}`,
-      title: info.title || 'High Definition Media',
+      title: info.title,
       duration: info.durationLabel || 'HD',
       thumbnail: info.thumbnail,
       quality: `${qualityStr}p`,
-      type: type,
-      isGateway: false
+      type: 'video'
     };
     setCache(cacheKey, res);
     return res;
   }
 
-  // Check progressive formats from info if available
-  if (info.video_formats && Array.isArray(info.video_formats)) {
-    const matchFmt = info.video_formats.find(f => String(f.quality) === String(qualityStr) && f.url) ||
-                     info.video_formats.find(f => f.url);
-    if (matchFmt && matchFmt.url) {
-      const res = {
-        success: true,
-        downloadUrl: matchFmt.url,
-        filename: `${cleanTitle}_${qualityStr}p.${ext}`,
-        title: info.title || 'High Definition Media',
-        duration: info.durationLabel || 'HD',
-        thumbnail: info.thumbnail,
-        quality: `${qualityStr}p`,
-        type: type,
-        isGateway: false
-      };
-      setCache(cacheKey, res);
-      return res;
-    }
-  }
+  // Call the universal multi-tier extraction engine
+  const targetUrl = info.originalUrl || info.normalizedUrl || `https://www.youtube.com/watch?v=${info.id || info.key}`;
+  const extracted = await extractUniversalVideo(targetUrl, qualityStr, type);
 
-  throw new Error('Direct media stream not available for this link. Please check if the video is public.');
+  const finalDownloadUrl = extracted.downloadUrl;
+  const res = {
+    success: true,
+    downloadUrl: finalDownloadUrl,
+    filename: `${cleanTitle}_${qualityStr}${type === 'audio' ? 'kbps' : 'p'}.${ext}`,
+    title: extracted.title || info.title || 'Media Video',
+    duration: extracted.durationLabel || info.durationLabel || 'HD',
+    thumbnail: extracted.thumbnail || info.thumbnail,
+    quality: extracted.quality || `${qualityStr}${type === 'audio' ? 'kbps' : 'p'}`,
+    type: type
+  };
+
+  setCache(cacheKey, res);
+  return res;
 }
 
 // -------------------------------------------------------------
 // HTTP SERVER
 // -------------------------------------------------------------
 const server = http.createServer(async (req, res) => {
+  // Apply defensive security headers and strip server fingerprints
+  applyDefensiveSecurityHeaders(res);
+
+  const clientIp = getClientIp(req);
+
+  // Method gating: Only allow standard HTTP methods
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, HEAD, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Range'
+    });
+    res.end();
+    return;
+  }
+
+  if (req.method !== 'GET' && req.method !== 'POST' && req.method !== 'HEAD') {
+    res.writeHead(405, { 'Content-Type': 'text/plain' });
+    res.end('Method Not Allowed');
+    return;
+  }
+
   const parsedUrl = url.parse(req.url, true);
   let reqPath = parsedUrl.pathname;
 
@@ -867,6 +1260,15 @@ const server = http.createServer(async (req, res) => {
     reqPath = '/index.html';
   } else if (reqPath === '/news') {
     reqPath = '/news.html';
+  }
+
+  // Rate Limiting (120 req/min for static pages, 40 req/min for APIs)
+  const isApiReq = reqPath.startsWith('/api/');
+  const maxReqs = isApiReq ? 40 : 120;
+  if (!checkRateLimit(clientIp, maxReqs, 60000)) {
+    res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '60' });
+    res.end(JSON.stringify({ success: false, error: 'Rate limit exceeded. Please wait a moment.' }));
+    return;
   }
 
   // Health check endpoint
@@ -968,18 +1370,20 @@ const server = http.createServer(async (req, res) => {
       });
 
       const nextUpdateDate = newsState.lastUpdated
-        ? new Date(new Date(newsState.lastUpdated).getTime() + 24 * 60 * 60 * 1000)
+        ? new Date(new Date(newsState.lastUpdated).getTime() + 20 * 60 * 1000)
         : null;
 
       res.writeHead(200, {
         'Content-Type': 'application/json; charset=utf-8',
         'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=300'
+        'Cache-Control': 'public, max-age=60'
       });
       res.end(JSON.stringify({
         success: true,
         source: 'Google News',
-        updateFrequency: 'Daily (Automatic)',
+        updateFrequency: 'Every 20 minutes (Automatic)',
+        refreshIntervalMinutes: 20,
+        refreshIntervalSeconds: 1200,
         lastUpdated: newsState.lastUpdated || new Date().toISOString(),
         nextScheduledUpdate: nextUpdateDate ? nextUpdateDate.toISOString() : null,
         totalArticles: articlesWithDynamicTime.length,
@@ -1014,10 +1418,11 @@ const server = http.createServer(async (req, res) => {
   // API: ANALYZE VIDEO
   // -----------------------------------------------------------
   if (reqPath === '/api/analyze') {
-    const videoUrl = parsedUrl.query.url;
+    const rawVideoUrl = parsedUrl.query.url;
+    const videoUrl = sanitizeAndValidateUrl(rawVideoUrl);
     if (!videoUrl) {
       res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-      res.end(JSON.stringify({ success: false, error: 'Missing url parameter' }));
+      res.end(JSON.stringify({ success: false, error: 'Invalid or unsupported URL parameter' }));
       return;
     }
 
@@ -1057,7 +1462,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
       res.end(JSON.stringify({
         success: false,
-        error: err.message || 'Could not analyze video. Please verify the URL and try again.'
+        error: 'Could not analyze video. Please verify the URL and try again.'
       }));
     }
     return;
@@ -1067,13 +1472,14 @@ const server = http.createServer(async (req, res) => {
   // API: GENERATE DOWNLOAD LINK / RESOLVE STREAM (ULTRA-FAST)
   // -----------------------------------------------------------
   if (reqPath === '/api/download' || reqPath === '/api/resolve') {
-    const videoUrl = parsedUrl.query.url;
+    const rawVideoUrl = parsedUrl.query.url;
+    const videoUrl = sanitizeAndValidateUrl(rawVideoUrl);
     const quality = parsedUrl.query.quality || '720';
     const type = parsedUrl.query.type || 'video';
 
     if (!videoUrl) {
       res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-      res.end(JSON.stringify({ success: false, error: 'Missing url parameter' }));
+      res.end(JSON.stringify({ success: false, error: 'Invalid or unsupported URL parameter' }));
       return;
     }
 
@@ -1112,13 +1518,14 @@ const server = http.createServer(async (req, res) => {
   // API: 1-CLICK INSTANT FAST DOWNLOAD (DIRECT ATTACHMENT)
   // -----------------------------------------------------------
   if (reqPath === '/api/fast-download') {
-    const videoUrl = parsedUrl.query.url;
+    const rawVideoUrl = parsedUrl.query.url;
+    const videoUrl = sanitizeAndValidateUrl(rawVideoUrl);
     const quality = parsedUrl.query.quality || '720';
     const type = parsedUrl.query.type || 'video';
 
     if (!videoUrl) {
       res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
-      res.end('Missing url parameter');
+      res.end('Invalid or unsupported URL parameter');
       return;
     }
 
@@ -1145,26 +1552,30 @@ const server = http.createServer(async (req, res) => {
   // API: STREAM PROXY WITH ATTACHMENT DISPOSITION
   // -----------------------------------------------------------
   if (reqPath === '/api/proxy' || reqPath === '/api/stream') {
-    const targetUrl = parsedUrl.query.url;
-    const filename = parsedUrl.query.filename || 'download.mp4';
+    const rawTargetUrl = parsedUrl.query.url;
+    const targetUrl = sanitizeAndValidateUrl(rawTargetUrl);
+    const rawFilename = parsedUrl.query.filename || 'download.mp4';
+    // Strict filename sanitization against CRLF injection and path traversal
+    const safeFilename = String(rawFilename).replace(/[\r\n"\\/]/g, '').trim().slice(0, 200) || 'download.mp4';
     const type = parsedUrl.query.type || 'video';
     const contentType = type === 'audio' ? 'audio/mpeg' : 'video/mp4';
 
     if (!targetUrl) {
       res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
-      res.end('Missing url query');
+      res.end('Invalid or prohibited target URL');
       return;
     }
 
     try {
-      const isTiktok = targetUrl.includes('tiktok') || targetUrl.includes('tikwm');
-      const isYt = targetUrl.includes('googlevideo') || targetUrl.includes('savetube');
+      const isTiktok = targetUrl.includes('tiktok') || targetUrl.includes('tikwm') || targetUrl.includes('nowmvideo') || targetUrl.includes('tikmate');
+      const isYt = targetUrl.includes('googlevideo') || targetUrl.includes('savetube') || targetUrl.includes('youtube');
       const reqHeaders = {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+        'Accept': '*/*'
       };
       if (isTiktok) {
         reqHeaders['Referer'] = 'https://www.tiktok.com/';
-      } else if (isYt) {
+      } else if (targetUrl.includes('savetube')) {
         reqHeaders['Referer'] = 'https://save-tube.com/';
       }
 
@@ -1177,10 +1588,10 @@ const server = http.createServer(async (req, res) => {
         throw new Error(`Proxy target error: HTTP ${proxyRes.status}`);
       }
 
-      const cleanAscii = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const cleanAscii = safeFilename.replace(/[^a-zA-Z0-9._-]/g, '_');
       const responseHeaders = {
         'Content-Type': contentType,
-        'Content-Disposition': `attachment; filename="${cleanAscii}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        'Content-Disposition': `attachment; filename="${cleanAscii}"; filename*=UTF-8''${encodeURIComponent(safeFilename)}`,
         'Access-Control-Allow-Origin': '*',
         'Accept-Ranges': 'bytes',
         'Cache-Control': 'no-cache'

@@ -273,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchBtn.addEventListener('click', () => {
     const url = urlInput.value.trim();
     if (!url) {
-      alert('Please enter a YouTube, TikTok, or Instagram video link.');
+      alert('Please enter any video link to download.');
       urlInput.focus();
       return;
     }
@@ -326,6 +326,10 @@ document.addEventListener('DOMContentLoaded', () => {
       platformName = ytInfo.isShort ? 'YouTube Shorts' : 'YouTube';
       thumbUrl = `https://i.ytimg.com/vi/${ytInfo.id}/hqdefault.jpg`;
       title = ytInfo.isShort ? 'YouTube Shorts Video' : 'YouTube Video';
+    } else {
+      platformName = 'Video Stream';
+      title = 'Playable Media Stream';
+      channel = 'Online Video';
     }
 
     // Call server analyzer endpoint for exact video title, thumbnail, duration
@@ -337,6 +341,8 @@ document.addEventListener('DOMContentLoaded', () => {
           if (analyzeData.title) title = analyzeData.title;
           if (analyzeData.thumbnail) thumbUrl = analyzeData.thumbnail;
           if (analyzeData.duration) duration = analyzeData.duration;
+          if (analyzeData.platform) platformName = analyzeData.platform;
+          if (analyzeData.author) channel = analyzeData.author;
           if (analyzeData.id) {
             if (!ytInfo) {
               ytInfo = { id: analyzeData.id, isShort: false };

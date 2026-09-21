@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -188,17 +189,71 @@ class VideoDownloadManager(private val context: Context) {
         platform: String,
         format: VideoFormatOption
     ): Pair<String?, String?> {
-        // Direct media links
+        val qVal = if (format.id == "mp3") "128" else format.resolution.replace("p", "")
+        val typeVal = if (format.id == "mp3") "audio" else "video"
+
+        // Tier 0: Direct media links (.mp4, .webm, .mkv, .mov, .mp3, etc.)
         if (originalUrl.endsWith(".mp4", true) ||
             originalUrl.contains(".mp4?") ||
             originalUrl.endsWith(".webm", true) ||
-            originalUrl.endsWith(".mp3", true)) {
+            originalUrl.endsWith(".mkv", true) ||
+            originalUrl.endsWith(".mov", true) ||
+            originalUrl.endsWith(".mp3", true) ||
+            originalUrl.contains(".googlevideo.com/videoplayback")) {
             return Pair(originalUrl, null)
         }
 
-        // 1. TikTok resolution via TikWM API (direct no-watermark MP4)
+        // Tier 1: Local / Host Applet Server API (yt-dlp multi-tier engine)
+        val serverCandidates = listOf("http://10.0.2.2:3000", "http://127.0.0.1:3000", "http://localhost:3000")
+        for (baseHost in serverCandidates) {
+            try {
+                val apiEndpoint = "$baseHost/api/download?url=" +
+                        java.net.URLEncoder.encode(originalUrl, "UTF-8") +
+                        "&quality=$qVal&type=$typeVal"
+                val sReq = Request.Builder()
+                    .url(apiEndpoint)
+                    .header("User-Agent", "Mozilla/5.0 (Android)")
+                    .build()
+                val sResp = httpClient.newCall(sReq).execute()
+                if (sResp.isSuccessful) {
+                    val sBody = sResp.body?.string() ?: ""
+                    val sJson = JSONObject(sBody)
+                    if (sJson.optBoolean("success")) {
+                        val dUrl = sJson.optString("downloadUrl")
+                        val title = sJson.optString("title").takeIf { it.isNotBlank() }
+                        if (!dUrl.isNullOrBlank() && dUrl.startsWith("http")) {
+                            return Pair(dUrl, title)
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // Tier 2: TikTok resolution (TikMate API & TikWM)
         if (platform == "TikTok" || originalUrl.contains("tiktok.com")) {
             try {
+                // TikMate Lookup API
+                val formBody = FormBody.Builder().add("url", originalUrl).build()
+                val tmReq = Request.Builder()
+                    .url("https://api.tikmate.app/api/lookup")
+                    .post(formBody)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                    .build()
+                val tmResp = httpClient.newCall(tmReq).execute()
+                if (tmResp.isSuccessful) {
+                    val tmJson = JSONObject(tmResp.body?.string() ?: "{}")
+                    val id = tmJson.optString("id")
+                    val token = tmJson.optString("token")
+                    if (id.isNotBlank() && token.isNotBlank()) {
+                        val directUrl = "https://tikmate.app/download/$id/$token.mp4"
+                        val title = tmJson.optString("desc").take(80).ifBlank { "TikTok Video" }
+                        return Pair(directUrl, title)
+                    }
+                }
+            } catch (_: Exception) {}
+
+            try {
+                // TikWM API fallback
                 val apiUrl = "https://www.tikwm.com/api/?url=" + java.net.URLEncoder.encode(originalUrl, "UTF-8")
                 val req = Request.Builder()
                     .url(apiUrl)
@@ -230,7 +285,7 @@ class VideoDownloadManager(private val context: Context) {
             }
         }
 
-        // 2. YouTube resolution via Savetube v2 AES engine
+        // Tier 3: YouTube resolution via Savetube v2 AES engine
         if (platform == "YouTube" || originalUrl.contains("youtube.com") || originalUrl.contains("youtu.be")) {
             var resolvedTitle: String? = null
             try {
@@ -348,7 +403,29 @@ class VideoDownloadManager(private val context: Context) {
             } catch (_: Exception) {}
         }
 
-        // Return null if resolution could not find a stream - NEVER return dummy/sample media
+        // Tier 4: Universal HTML scraper for any website / URL
+        try {
+            val pageReq = Request.Builder()
+                .url(originalUrl)
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Mobile Safari/537.36")
+                .build()
+            val pageResp = httpClient.newCall(pageReq).execute()
+            if (pageResp.isSuccessful) {
+                val html = pageResp.body?.string() ?: ""
+                val ogVidRegex = Regex("""<meta\s+property=["']og:video(?::secure_url|:url)?["']\s+content=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+                val directSrcRegex = Regex("""<(?:video|source)[^>]+src=["']([^"']+\.mp4[^"']*)["']""", RegexOption.IGNORE_CASE)
+                val match = ogVidRegex.find(html) ?: directSrcRegex.find(html)
+                val rawStream = match?.groupValues?.getOrNull(1)
+                if (!rawStream.isNullOrBlank()) {
+                    val fullStream = if (rawStream.startsWith("//")) "https:$rawStream" else rawStream
+                    val titleRegex = Regex("""<title>([^<]+)</title>""", RegexOption.IGNORE_CASE)
+                    val title = titleRegex.find(html)?.groupValues?.getOrNull(1)?.trim() ?: "Web Video"
+                    return Pair(fullStream, title)
+                }
+            }
+        } catch (_: Exception) {}
+
+        // Return null if resolution could not find a stream
         return Pair(null, null)
     }
 

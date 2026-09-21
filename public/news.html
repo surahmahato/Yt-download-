@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-  <title>Recent News from Google - Daily Automatic Updates | YT Download</title>
-  <meta name="description" content="Stay up to date with recent headlines from Google News. Daily automatic updates across top stories, technology, business, world news, and entertainment with related images.">
+  <title>Recent News from Google - Daily Automatic Updates | World Breaking News</title>
+  <link rel="canonical" href="https://ytdownload-ti50.onrender.com/news">
+  <meta name="description" content="Stay up to date with recent headlines from Google News. Daily news and world breaking news across top stories, technology, business, and entertainment.">
+  <meta name="keywords" content="News, Daily news, World breaking news, Google News, Top headlines, Latest updates, YouTube video downloader, Download youtube video for free">
+  <meta name="robots" content="index, follow">
   <link rel="stylesheet" href="/styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -237,6 +240,39 @@
       padding: 5px 12px;
       border-radius: 8px;
       border: 1px solid #e2e8f0;
+    }
+
+    .news-auto-refresh-pill {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #15803d;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    .news-pulse-dot {
+      width: 8px;
+      height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      animation: pulse-green 2s infinite;
+    }
+
+    @keyframes pulse-green {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      }
+      70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+      }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+      }
     }
 
     .btn-news-refresh {
@@ -1021,15 +1057,19 @@
     <section class="news-hero-section">
       <div class="news-live-ribbon">
         <span class="news-live-dot"></span>
-        <span>Google News Live Feed &bull; Updated Daily Automatically</span>
+        <span>Google News Live Feed &bull; Auto-Refreshes Every 20 Minutes</span>
       </div>
       <h1 class="news-hero-title">Recent <span>Google News</span></h1>
-      <p class="news-hero-subtitle">Explore the latest news headlines from verified global sources with topical images, refreshed automatically every day directly from Google News.</p>
+      <p class="news-hero-subtitle">Explore the latest news headlines from verified global sources with topical images, refreshed automatically every 20 minutes directly from Google News.</p>
 
       <div class="news-sync-meta">
         <div class="news-sync-item">
           <svg style="width:15px;height:15px;fill:#64748b;display:inline-block;" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
           <span id="newsLastUpdatedLabel">Syncing news...</span>
+        </div>
+        <div class="news-sync-item news-auto-refresh-pill" id="newsAutoRefreshBadge" title="Articles automatically refresh every 20 minutes">
+          <span class="news-pulse-dot"></span>
+          <span id="newsCountdownLabel">Auto-refresh in 20:00</span>
         </div>
         <button type="button" id="refreshNewsBtn" class="btn-news-refresh" title="Check for fresh news from Google now">
           <svg style="width:14px;height:14px;fill:currentColor;display:inline-block;" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
@@ -1175,10 +1215,69 @@
       const grid = document.getElementById('newsCardsGrid');
       const resultsCount = document.getElementById('newsResultsCount');
       const lastUpdatedLabel = document.getElementById('newsLastUpdatedLabel');
+      const countdownLabel = document.getElementById('newsCountdownLabel');
       const searchInput = document.getElementById('newsSearchInput');
       const refreshBtn = document.getElementById('refreshNewsBtn');
       const categoryPills = document.querySelectorAll('.news-cat-pill');
       const toast = document.getElementById('toastNotification');
+
+      // 20-Minute Auto-Refresh Engine
+      const AUTO_REFRESH_SECONDS = 20 * 60; // 1200 seconds = 20 minutes
+      let nextRefreshTimestamp = Date.now() + (AUTO_REFRESH_SECONDS * 1000);
+      let countdownTimerId = null;
+      let isAutoRefreshing = false;
+
+      function resetAutoRefreshCountdown() {
+        nextRefreshTimestamp = Date.now() + (AUTO_REFRESH_SECONDS * 1000);
+        updateCountdownDisplay();
+      }
+
+      function updateCountdownDisplay() {
+        const remainingMs = Math.max(0, nextRefreshTimestamp - Date.now());
+        const totalSec = Math.ceil(remainingMs / 1000);
+        const mins = Math.floor(totalSec / 60);
+        const secs = totalSec % 60;
+        const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        
+        if (countdownLabel) {
+          countdownLabel.textContent = `Auto-refresh in ${formatted}`;
+        }
+
+        if (totalSec <= 0 && !isAutoRefreshing) {
+          executeAutoRefresh();
+        }
+      }
+
+      async function executeAutoRefresh() {
+        isAutoRefreshing = true;
+        try {
+          if (countdownLabel) countdownLabel.textContent = 'Auto-refreshing...';
+          await fetchNews(true, true);
+          showToast('✓ Auto-refreshed: Latest headlines updated!');
+        } catch (e) {
+          console.warn('Auto refresh error:', e);
+        } finally {
+          isAutoRefreshing = false;
+          resetAutoRefreshCountdown();
+        }
+      }
+
+      function startCountdownLoop() {
+        if (countdownTimerId) clearInterval(countdownTimerId);
+        updateCountdownDisplay();
+        countdownTimerId = setInterval(updateCountdownDisplay, 1000);
+      }
+
+      // Handle Tab Visibility (If user returns after 20 mins, update instantly)
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          if (Date.now() >= nextRefreshTimestamp) {
+            executeAutoRefresh();
+          } else {
+            updateCountdownDisplay();
+          }
+        }
+      });
 
       // Modal elements
       const modal = document.getElementById('newsDetailModal');
@@ -1449,8 +1548,8 @@
         renderArticles(filtered);
       }
 
-      async function fetchNews(forceRefresh = false) {
-        if (forceRefresh) {
+      async function fetchNews(forceRefresh = false, isSilentAuto = false) {
+        if (forceRefresh && !isSilentAuto) {
           refreshBtn.classList.add('spinning');
         }
 
@@ -1466,11 +1565,23 @@
             
             const timeStr = lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             const dateStr = lastUpdated.toLocaleDateString([], { month: 'short', day: 'numeric' });
-            lastUpdatedLabel.textContent = `Updated: ${dateStr}, ${timeStr} • Daily Auto-Update`;
+            lastUpdatedLabel.textContent = `Updated: ${dateStr}, ${timeStr} • Auto-refresh: 20 mins`;
             
+            // Sync countdown to server's nextScheduledUpdate if available
+            if (data.nextScheduledUpdate) {
+              const scheduledTime = new Date(data.nextScheduledUpdate).getTime();
+              if (scheduledTime > Date.now()) {
+                nextRefreshTimestamp = scheduledTime;
+              } else {
+                resetAutoRefreshCountdown();
+              }
+            } else {
+              resetAutoRefreshCountdown();
+            }
+
             filterAndDisplay();
 
-            if (forceRefresh) {
+            if (forceRefresh && !isSilentAuto) {
               showToast(`✓ Google News refreshed! (${allArticles.length} unique articles)`);
             }
           } else {
@@ -1478,7 +1589,9 @@
           }
         } catch (err) {
           console.error('Error fetching Google News:', err);
-          showToast('Could not load latest news. Retrying...');
+          if (!isSilentAuto) {
+            showToast('Could not load latest news. Retrying...');
+          }
           lastUpdatedLabel.textContent = 'Connection issue • Tap Refresh';
           if (allArticles.length === 0) {
             grid.innerHTML = `
@@ -1511,12 +1624,14 @@
 
       // Refresh button handler
       refreshBtn.addEventListener('click', () => {
+        resetAutoRefreshCountdown();
         fetchNews(true);
       });
 
-      // Initial load
+      // Initial load & start 20-minute countdown loop
       window.fetchNews = fetchNews;
       fetchNews();
+      startCountdownLoop();
     })();
   </script>
 </body>
