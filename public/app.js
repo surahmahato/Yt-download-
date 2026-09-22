@@ -338,16 +338,17 @@ document.addEventListener('DOMContentLoaded', () => {
       if (analyzeRes.ok) {
         const analyzeData = await analyzeRes.json();
         if (analyzeData.success) {
-          if (analyzeData.title) title = analyzeData.title;
-          if (analyzeData.thumbnail) thumbUrl = analyzeData.thumbnail;
-          if (analyzeData.duration) duration = analyzeData.duration;
-          if (analyzeData.platform) platformName = analyzeData.platform;
-          if (analyzeData.author) channel = analyzeData.author;
-          if (analyzeData.id) {
+          const v = analyzeData.video || analyzeData;
+          if (v.title) title = v.title;
+          if (v.thumbnail) thumbUrl = v.thumbnail;
+          if (v.durationLabel || v.duration) duration = v.durationLabel || v.duration;
+          if (v.platform) platformName = v.platform;
+          if (v.channel || v.author) channel = v.channel || v.author;
+          if (v.id) {
             if (!ytInfo) {
-              ytInfo = { id: analyzeData.id, isShort: false };
+              ytInfo = { id: v.id, isShort: false };
             } else {
-              ytInfo.id = analyzeData.id;
+              ytInfo.id = v.id;
             }
           }
         }

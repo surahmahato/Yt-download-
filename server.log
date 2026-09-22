@@ -1,4 +1,6 @@
-[Google News] Loaded and deduplicated 253 cached articles with related images (Updated: 2026-09-21T12:34:08.131Z)
-YT Download & Google News server running live on port 3000
+[@vreden/youtube_scraper load warning]: Cannot find module '@vreden/youtube_scraper'
+Require stack:
+- /app/applet/server.js
+[Google News] Loaded and deduplicated 257 cached articles with related images (Updated: 2026-09-21T12:59:08.996Z)
 [Google News] Fetching fresh news update from Google (20-min cycle)...
-[Google News] Successfully updated 257 recent articles. Next update in 20 minutes.
+YT Download & Google News server running live on port 3000
