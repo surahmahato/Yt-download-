@@ -310,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let channel = 'Social Media Creator';
     let duration = '01:23';
     let views = 'High Definition';
-    const ytInfo = extractYouTubeId(url);
+    let ytInfo = extractYouTubeId(url);
 
     // Initial local guess based on platform
     const lower = url.toLowerCase();

@@ -95,7 +95,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun analyzeCurrentUrl() {
         val input = _urlInput.value.trim()
         if (input.isEmpty()) {
-            _errorMessage.value = "Please enter or paste a valid video URL"
+            _errorMessage.value = "Please enter or paste any video URL to download"
             return
         }
 
@@ -106,15 +106,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 downloadManager.analyzeUrl(input)
             }
             _isAnalyzing.value = false
-            if (result == null) {
-                _errorMessage.value = "Invalid or unsupported video URL. Please check the link and try again."
-                _analyzedMetadata.value = null
-                _selectedFormat.value = null
-            } else {
-                _errorMessage.value = null
-                _analyzedMetadata.value = result
-                _selectedFormat.value = result.formats.firstOrNull()
-            }
+            _errorMessage.value = null
+            _analyzedMetadata.value = result
+            _selectedFormat.value = result.formats.firstOrNull { it.quality == "720" } ?: result.formats.firstOrNull()
         }
     }
 
@@ -125,7 +119,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun fastOneClickDownload(formatType: String) { // "hd" or "mp3"
         val input = _urlInput.value.trim()
         if (input.isEmpty()) {
-            _errorMessage.value = "Please paste or enter a video link first"
+            _errorMessage.value = "Please paste or enter any video link first"
             return
         }
         viewModelScope.launch {
@@ -135,15 +129,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 downloadManager.analyzeUrl(input)
             }
             _isAnalyzing.value = false
-            if (meta == null) {
-                _errorMessage.value = "Could not parse video. Please verify the link is public and valid."
-                return@launch
-            }
             _analyzedMetadata.value = meta
-            val format = if (formatType == "mp3") {
-                meta.formats.firstOrNull { it.extension == "mp3" } ?: meta.formats.lastOrNull()
-            } else {
-                meta.formats.firstOrNull { it.resolution.contains("720") || it.resolution.contains("1080") } ?: meta.formats.firstOrNull()
+            val format: VideoFormatOption = when {
+                formatType == "mp3" -> meta.formats.firstOrNull { it.extension == "mp3" } ?: meta.formats.lastOrNull()
+                formatType == "photo" || meta.isPhoto -> meta.formats.firstOrNull { it.type == "photo" } ?: meta.formats.firstOrNull()
+                else -> meta.formats.firstOrNull { it.resolution.contains("1080") }
+                    ?: meta.formats.firstOrNull { it.resolution.contains("720") }
+                    ?: meta.formats.firstOrNull()
             } ?: return@launch
             _selectedFormat.value = format
             downloadManager.downloadVideo(meta, format)

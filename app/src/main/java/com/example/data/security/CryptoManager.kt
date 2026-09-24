@@ -193,22 +193,34 @@ object CryptoManager {
     )
 
     fun validateAndSanitizeUrl(rawUrl: String): UrlValidationResult {
-        val trimmed = rawUrl.trim()
+        var trimmed = rawUrl.trim()
         if (trimmed.isEmpty()) {
             return UrlValidationResult(false, errorReason = "URL cannot be empty")
         }
 
-        // Scheme verification: strictly HTTP or HTTPS
-        val lower = trimmed.lowercase()
-        if (!lower.startsWith("https://") && !lower.startsWith("http://")) {
-            return UrlValidationResult(false, errorReason = "Security violation: Only HTTPS or HTTP protocols are permitted.")
+        // Clean surrounding quotes or angle brackets if pasted from markdown/messages
+        if ((trimmed.startsWith("<") && trimmed.endsWith(">")) ||
+            (trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+            (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+            trimmed = trimmed.substring(1, trimmed.length - 1).trim()
         }
+
+        // Scheme verification: auto-prepend https:// if missing
+        if (!trimmed.startsWith("https://", ignoreCase = true) && !trimmed.startsWith("http://", ignoreCase = true)) {
+            if (trimmed.contains("://")) {
+                trimmed = "https://" + trimmed.substringAfter("://")
+            } else {
+                trimmed = "https://$trimmed"
+            }
+        }
+
+        val lower = trimmed.lowercase()
 
         // Check for disallowed protocol injection
         val dangerousSchemes = listOf("file:", "javascript:", "data:", "content:", "intent:", "ftp:", "jar:")
         for (scheme in dangerousSchemes) {
             if (lower.contains(scheme)) {
-                return UrlValidationResult(false, errorReason = "Attack prevention: Disallowed scheme '$scheme' detected.")
+                return UrlValidationResult(false, errorReason = "Disallowed scheme '$scheme' detected.")
             }
         }
 
@@ -229,16 +241,26 @@ object CryptoManager {
                 return UrlValidationResult(false, errorReason = "Blocked private network address (Anti-SSRF Protection).")
             }
 
-            // Detect Platform
+            // Universal Platform Detection - Never reject any platform
             val platform = when {
                 host.contains("youtube.com") || host.contains("youtu.be") -> "YouTube"
                 host.contains("tiktok.com") -> "TikTok"
-                host.contains("instagram.com") -> "Instagram"
-                host.contains("twitter.com") || host.contains("x.com") -> "Twitter/X"
-                host.contains("facebook.com") || host.contains("fb.watch") -> "Facebook"
+                host.contains("instagram.com") || host.contains("instagr.am") -> "Instagram"
+                host.contains("twitter.com") || host.contains("x.com") || host.contains("t.co") -> "Twitter/X"
+                host.contains("facebook.com") || host.contains("fb.watch") || host.contains("fb.gg") -> "Facebook"
                 host.contains("reddit.com") || host.contains("redd.it") -> "Reddit"
                 host.contains("vimeo.com") -> "Vimeo"
-                else -> "Direct Link"
+                host.contains("dailymotion.com") || host.contains("dai.ly") -> "Dailymotion"
+                host.contains("pinterest.com") || host.contains("pin.it") -> "Pinterest"
+                host.contains("twitch.tv") -> "Twitch"
+                host.contains("threads.net") -> "Threads"
+                host.contains("rumble.com") -> "Rumble"
+                host.contains("bilibili.com") -> "Bilibili"
+                host.contains("streamable.com") -> "Streamable"
+                else -> {
+                    val cleanHost = host.replace("www.", "")
+                    if (cleanHost.contains(".")) cleanHost.substringBefore(".") else "Universal Video"
+                }
             }
 
             return UrlValidationResult(true, sanitizedUrl = trimmed, platform = platform)

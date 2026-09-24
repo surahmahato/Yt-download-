@@ -17,11 +17,19 @@ import java.io.FileOutputStream
 object GallerySaver {
 
     /**
-     * Copies a downloaded video/audio file directly into the Android Phone Gallery (MediaStore).
-     * The media is indexed into Movies/YT_Download (or Music/YT_Download) and scanned so it
-     * immediately appears in Google Photos, Samsung Gallery, and native device gallery apps.
+     * Copies a downloaded video, photo, or audio file directly into the Android Phone Gallery (MediaStore).
+     * Videos are indexed into Movies/YT_Download, Photos into Pictures/YT_Download, and Audio into Music/YT_Download,
+     * immediately appearing in Google Photos, Samsung Gallery, and native device gallery apps.
      */
     suspend fun saveVideoToGallery(
+        context: Context,
+        sourceFile: File,
+        title: String,
+        mimeType: String = "video/mp4",
+        subFolder: String = "YT_Download"
+    ): Uri? = saveMediaToGallery(context, sourceFile, title, mimeType, subFolder)
+
+    suspend fun saveMediaToGallery(
         context: Context,
         sourceFile: File,
         title: String,
@@ -31,7 +39,12 @@ object GallerySaver {
         val resolver = context.contentResolver
         val cleanTitle = title.replace(Regex("[^a-zA-Z0-9._-]"), "_").take(50)
         val isAudio = mimeType.startsWith("audio")
-        val extension = if (isAudio) "mp3" else "mp4"
+        val isImage = mimeType.startsWith("image")
+        val extension = when {
+            isImage -> if (mimeType.contains("png")) "png" else if (mimeType.contains("webp")) "webp" else "jpg"
+            isAudio -> "mp3"
+            else -> "mp4"
+        }
         val fileName = "${cleanTitle}_${System.currentTimeMillis()}.$extension"
         val nowSeconds = System.currentTimeMillis() / 1000
 
@@ -43,23 +56,37 @@ object GallerySaver {
             put(MediaStore.MediaColumns.DATE_MODIFIED, nowSeconds)
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val baseDir = if (isAudio) Environment.DIRECTORY_MUSIC else Environment.DIRECTORY_MOVIES
+                val baseDir = when {
+                    isImage -> Environment.DIRECTORY_PICTURES
+                    isAudio -> Environment.DIRECTORY_MUSIC
+                    else -> Environment.DIRECTORY_MOVIES
+                }
                 put(MediaStore.MediaColumns.RELATIVE_PATH, "$baseDir/$subFolder")
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
         }
 
-        val collectionUri = if (isAudio) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            } else {
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        val collectionUri = when {
+            isImage -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                } else {
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                }
             }
-        } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            } else {
-                MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            isAudio -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                } else {
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                }
+            }
+            else -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                } else {
+                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                }
             }
         }
 
@@ -115,10 +142,10 @@ object GallerySaver {
 
         // Fallback for Android 9 and lower or if MediaStore insert failed
         try {
-            val baseDir = if (isAudio) {
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
-            } else {
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+            val baseDir = when {
+                isImage -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                isAudio -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+                else -> Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
             }
             val targetFolder = File(baseDir, subFolder).apply { mkdirs() }
             val targetFile = File(targetFolder, fileName)

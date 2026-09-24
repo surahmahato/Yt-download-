@@ -59,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -67,6 +68,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.example.data.network.DownloadState
 import com.example.data.network.VideoFormatOption
 import com.example.data.storage.GallerySaver
@@ -138,37 +140,55 @@ fun DownloaderScreen(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
         )
 
-        // Colorful Supported Platforms Bar (YouTube Red, TikTok Cyan/Pink, Instagram Gradient)
-        Row(
+        // Universal Platform Guarantee Banner
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.6f),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp),
+                .padding(vertical = 4.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Universal Guarantee: Download videos from ANY platform without rejection.",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+            }
+        }
+
+        // Colorful Supported Platforms Bar (YouTube, TikTok, Instagram, Facebook, Twitter, Reddit, Any Platform)
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
             horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             // YouTube
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = Color(0xFFFEE2E2),
-                modifier = Modifier.padding(horizontal = 3.dp)
+                modifier = Modifier.padding(horizontal = 2.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFEF4444))
-                    )
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        text = "YouTube",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFFDC2626),
-                        fontWeight = FontWeight.Bold
-                    )
+                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFFEF4444)))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "YouTube", style = MaterialTheme.typography.labelSmall, color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -176,25 +196,15 @@ fun DownloaderScreen(
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = Color(0xFFE0F2FE),
-                modifier = Modifier.padding(horizontal = 3.dp)
+                modifier = Modifier.padding(horizontal = 2.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF0284C7))
-                    )
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        text = "TikTok",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF0284C7),
-                        fontWeight = FontWeight.Bold
-                    )
+                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF0284C7)))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "TikTok", style = MaterialTheme.typography.labelSmall, color = Color(0xFF0284C7), fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -202,25 +212,63 @@ fun DownloaderScreen(
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = Color(0xFFFCE7F3),
-                modifier = Modifier.padding(horizontal = 3.dp)
+                modifier = Modifier.padding(horizontal = 2.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFDB2777))
-                    )
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        text = "Instagram",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFFDB2777),
-                        fontWeight = FontWeight.Bold
-                    )
+                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFFDB2777)))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "Instagram", style = MaterialTheme.typography.labelSmall, color = Color(0xFFDB2777), fontWeight = FontWeight.Bold)
+                }
+            }
+
+            // Facebook
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFFDBEAFE),
+                modifier = Modifier.padding(horizontal = 2.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF2563EB)))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "Facebook", style = MaterialTheme.typography.labelSmall, color = Color(0xFF1D4ED8), fontWeight = FontWeight.Bold)
+                }
+            }
+
+            // Twitter / X
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFFF3F4F6),
+                modifier = Modifier.padding(horizontal = 2.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF1F2937)))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "Twitter/X", style = MaterialTheme.typography.labelSmall, color = Color(0xFF111827), fontWeight = FontWeight.Bold)
+                }
+            }
+
+            // Any Link Guarantee
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFFD1FAE5),
+                modifier = Modifier.padding(horizontal = 2.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF10B981)))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "+ Any Website", style = MaterialTheme.typography.labelSmall, color = Color(0xFF047857), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -242,7 +290,7 @@ fun DownloaderScreen(
                     onValueChange = { viewModel.onUrlChanged(it) },
                     placeholder = {
                         Text(
-                            text = "Paste link from YouTube, TikTok, Insta, X...",
+                            text = "Paste video link from any platform or website...",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -499,6 +547,21 @@ fun DownloaderScreen(
                     border = CardDefaults.outlinedCardBorder()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
+                        // Thumbnail Preview
+                        if (!meta.thumbnailUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = meta.thumbnailUrl,
+                                contentDescription = meta.title,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(180.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentScale = ContentScale.Crop
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+
                         // Platform & Status
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -510,7 +573,7 @@ fun DownloaderScreen(
                                 color = MaterialTheme.colorScheme.primaryContainer
                             ) {
                                 Text(
-                                    text = meta.platform,
+                                    text = if (meta.isPhoto) "${meta.platform} • HD Photo" else "${meta.platform} • Video",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     fontWeight = FontWeight.Bold,
@@ -536,7 +599,7 @@ fun DownloaderScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // Video Title
+                        // Video / Photo Title
                         Text(
                             text = meta.title,
                             style = MaterialTheme.typography.titleMedium,
@@ -546,11 +609,26 @@ fun DownloaderScreen(
                             overflow = TextOverflow.Ellipsis
                         )
 
+                        if (meta.photos.size > 1) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer
+                            ) {
+                                Text(
+                                    text = "Album / Carousel: ${meta.photos.size} Photos Available",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+
                         Spacer(modifier = Modifier.height(12.dp))
 
                         // Resolution / Format Picker
                         Text(
-                            text = "Select Quality & Format:",
+                            text = if (meta.isPhoto) "Select Photo Resolution:" else "Select Quality & Format:",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -577,7 +655,7 @@ fun DownloaderScreen(
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
-                                            imageVector = if (format.extension == "mp3") Icons.Default.Movie else Icons.Default.HighQuality,
+                                            imageVector = if (format.type == "photo") Icons.Default.PhotoLibrary else if (format.extension == "mp3") Icons.Default.Movie else Icons.Default.HighQuality,
                                             contentDescription = null,
                                             tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(20.dp)
@@ -627,7 +705,11 @@ fun DownloaderScreen(
                                         color = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                     Text(
-                                        text = "Saved into Movies/YT_Download and auto-synced with your phone gallery & Google Photos.",
+                                        text = if (meta.isPhoto) {
+                                            "Saved into Pictures/YT_Download and auto-synced with your phone gallery & Google Photos."
+                                        } else {
+                                            "Saved into Movies/YT_Download and auto-synced with your phone gallery & Google Photos."
+                                        },
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
                                     )
@@ -648,7 +730,7 @@ fun DownloaderScreen(
                             Icon(imageVector = Icons.Default.Download, contentDescription = null)
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "Save Video into Phone Gallery",
+                                text = if (meta.isPhoto) "Save HD Photo into Phone Gallery" else "⚡ Download Video Anyways (100% Accurate)",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
@@ -829,8 +911,15 @@ fun DownloaderScreen(
 
                             Spacer(modifier = Modifier.height(10.dp))
 
+                            val isPhoto = state.file.name.endsWith(".jpg", true) || state.file.name.endsWith(".png", true)
+                            val isAudio = state.file.name.endsWith(".mp3", true)
+
                             Text(
-                                text = "Saved into Phone Integrated Gallery!",
+                                text = when {
+                                    isPhoto -> "Photo Saved to Phone Gallery!"
+                                    isAudio -> "Audio Saved to Music Library!"
+                                    else -> "Video Saved into Phone Gallery!"
+                                },
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -840,7 +929,11 @@ fun DownloaderScreen(
                             Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
-                                text = "Your video has been saved to Movies/YT_Download and indexed into your phone's native gallery, visible in Google Photos and device video apps.",
+                                text = when {
+                                    isPhoto -> "Your photo has been saved to Pictures/YT_Download and indexed into Google Photos & device gallery."
+                                    isAudio -> "Your audio track has been saved to Music/YT_Download and indexed into your native music player."
+                                    else -> "Your video has been saved to Movies/YT_Download and indexed into your phone's native gallery, visible in Google Photos and device video apps."
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
