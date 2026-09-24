@@ -351,6 +351,20 @@ document.addEventListener('DOMContentLoaded', () => {
               ytInfo.id = v.id;
             }
           }
+          currentVideoData = {
+            url,
+            platform: platformName,
+            thumbUrl,
+            title,
+            channel,
+            duration,
+            views,
+            ytInfo,
+            type: v.type || 'video',
+            isPhoto: !!v.isPhoto,
+            photos: v.photos || []
+          };
+          renderResolutionOptions(v);
         }
       }
     } catch (err) {
@@ -371,16 +385,22 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (e) {}
     }
 
-    currentVideoData = {
-      url,
-      platform: platformName,
-      thumbUrl,
-      title,
-      channel,
-      duration,
-      views,
-      ytInfo
-    };
+    if (!currentVideoData) {
+      currentVideoData = {
+        url,
+        platform: platformName,
+        thumbUrl,
+        title,
+        channel,
+        duration,
+        views,
+        ytInfo,
+        type: 'video',
+        isPhoto: false,
+        photos: []
+      };
+      renderResolutionOptions(currentVideoData);
+    }
 
     videoThumb.src = thumbUrl;
     videoDuration.textContent = duration;
@@ -410,21 +430,145 @@ document.addEventListener('DOMContentLoaded', () => {
     resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  // Quality Table direct download buttons
-  document.querySelectorAll('.table-dl-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const quality = btn.getAttribute('data-quality') || '720';
-      const type = btn.getAttribute('data-type') || 'video';
-      downloadSpecificQuality(quality, type, btn);
-    });
-  });
+  // Dynamically render resolution rows according to media type (Video vs High-Res Photo)
+  function renderResolutionOptions(v) {
+    const col = document.getElementById('resolutionSingleColumn');
+    if (!col) return;
+    const isPhoto = v && (v.isPhoto || v.type === 'photo');
+
+    if (isPhoto) {
+      selectedFormat = '1080';
+      selectedType = 'photo';
+      let html = `
+        <div class="res-item-row selected" data-quality="1080" data-type="photo">
+          <div class="res-left">
+            <span class="res-pill pill-1080" style="background:linear-gradient(135deg, #0284c7, #0369a1);color:#fff;">HD PHOTO</span>
+            <div class="res-info">
+              <div class="res-headline">Original Resolution (Full HD) <span class="format-badge-chip" style="background:#e0f2fe;color:#0369a1;">JPG Image</span></div>
+              <div class="res-subline">Pristine Uncompressed Quality • Direct Save to Gallery</div>
+            </div>
+          </div>
+          <button type="button" class="btn-res-action table-dl-btn" data-quality="1080" data-type="photo">
+            <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            <span>Download HD Photo</span>
+          </button>
+        </div>
+      `;
+
+      if (v.photos && v.photos.length > 1) {
+        v.photos.forEach((p, idx) => {
+          html += `
+            <div class="res-item-row" data-quality="1080" data-type="photo" data-photourl="${p.downloadUrl}" data-photoname="${p.filename || ('photo_' + (idx + 1) + '.jpg')}">
+              <div class="res-left">
+                <span class="res-pill" style="background:#38bdf8;color:#0f172a;font-weight:700;">#${idx + 1}</span>
+                <div class="res-info">
+                  <div class="res-headline">Photo ${idx + 1} of ${v.photos.length} <span class="format-badge-chip">Carousel Item</span></div>
+                  <div class="res-subline">Original Resolution • High Quality JPG</div>
+                </div>
+              </div>
+              <button type="button" class="btn-res-action table-dl-btn" data-quality="1080" data-type="photo" data-photourl="${p.downloadUrl}" data-photoname="${p.filename || ('photo_' + (idx + 1) + '.jpg')}">
+                <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                <span>Download Photo ${idx + 1}</span>
+              </button>
+            </div>
+          `;
+        });
+      }
+
+      col.innerHTML = html;
+      const btnText = document.getElementById('downloadBtnText');
+      if (btnText) btnText.textContent = '⚡ Save HD Photo to Phone Gallery';
+    } else {
+      selectedFormat = '1080';
+      selectedType = 'video';
+      col.innerHTML = `
+        <div class="res-item-row selected" data-quality="1080" data-type="video">
+          <div class="res-left">
+            <span class="res-pill pill-1080">1080p</span>
+            <div class="res-info">
+              <div class="res-headline">1080p (Full HD) <span class="format-badge-chip">MP4 Video</span></div>
+              <div class="res-subline">Maximum Quality • 1920x1080 • Direct Playable</div>
+            </div>
+          </div>
+          <button type="button" class="btn-res-action table-dl-btn" data-quality="1080" data-type="video">
+            <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            <span>Download 1080p</span>
+          </button>
+        </div>
+
+        <div class="res-item-row" data-quality="720" data-type="video">
+          <div class="res-left">
+            <span class="res-pill pill-720">720p</span>
+            <div class="res-info">
+              <div class="res-headline">720p (HD Standard) <span class="format-badge-chip">MP4 Video</span></div>
+              <div class="res-subline">Standard HD • Recommended for Mobile</div>
+            </div>
+          </div>
+          <button type="button" class="btn-res-action table-dl-btn" data-quality="720" data-type="video">
+            <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            <span>Download 720p</span>
+          </button>
+        </div>
+
+        <div class="res-item-row" data-quality="480" data-type="video">
+          <div class="res-left">
+            <span class="res-pill" style="background:#e0e7ff;color:#3730a3;font-weight:700;">480p</span>
+            <div class="res-info">
+              <div class="res-headline">480p (Standard) <span class="format-badge-chip">MP4 Video</span></div>
+              <div class="res-subline">Fast Download • High Compatibility</div>
+            </div>
+          </div>
+          <button type="button" class="btn-res-action table-dl-btn" data-quality="480" data-type="video">
+            <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            <span>Download 480p</span>
+          </button>
+        </div>
+
+        <div class="res-item-row" data-quality="360" data-type="video">
+          <div class="res-left">
+            <span class="res-pill pill-360">360p</span>
+            <div class="res-info">
+              <div class="res-headline">360p (Fast / Data Saver) <span class="format-badge-chip">MP4 Video</span></div>
+              <div class="res-subline">Fastest Download • Compact File Size</div>
+            </div>
+          </div>
+          <button type="button" class="btn-res-action table-dl-btn" data-quality="360" data-type="video">
+            <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            <span>Download 360p</span>
+          </button>
+        </div>
+
+        <div class="res-item-row audio-row" data-quality="320" data-type="audio">
+          <div class="res-left">
+            <span class="res-pill pill-mp3">MP3</span>
+            <div class="res-info">
+              <div class="res-headline">MP3 Audio (High Quality 320kbps) <span class="format-badge-chip audio">Audio HQ</span></div>
+              <div class="res-subline">Studio Sound • Music / Phone Ringtone</div>
+            </div>
+          </div>
+          <button type="button" class="btn-res-action audio-btn table-dl-btn" data-quality="320" data-type="audio">
+            <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            <span>Download MP3</span>
+          </button>
+        </div>
+      `;
+      const btnText = document.getElementById('downloadBtnText');
+      if (btnText) btnText.textContent = '⚡ Save 1080p Video to Phone Gallery';
+    }
+
+    initResolutionRowListeners();
+  }
+
+  // Quality Table direct download buttons setup
+  initResolutionRowListeners();
 
   // Main Download Button
   if (downloadBtn) {
     downloadBtn.addEventListener('click', () => {
-      const qualityNum = selectedFormat.replace(/[^0-9]/g, '') || '720';
-      downloadSpecificQuality(qualityNum, selectedType, downloadBtn);
+      const isPhoto = currentVideoData && (currentVideoData.isPhoto || currentVideoData.type === 'photo');
+      const qualityNum = selectedFormat.replace(/[^0-9]/g, '') || (isPhoto ? '1080' : '1080');
+      const dlType = isPhoto ? 'photo' : (selectedType || 'video');
+      downloadSpecificQuality(qualityNum, dlType, downloadBtn);
     });
   }
 
@@ -438,13 +582,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 1-Click Fast Direct Download (No Boring Experience, Instant Gallery Save)
-  async function fastOneClickDownload(url, quality = '720', type = 'video', triggerBtn = null) {
+  async function fastOneClickDownload(url, quality = '1080', type = 'video', triggerBtn = null) {
     if (!url) return;
 
     // Ensure result metadata is populated or initiated
     if (!currentVideoData || currentVideoData.url !== url) {
       fetchVideoMetadata(url);
     }
+
+    const customPhotoUrl = triggerBtn ? triggerBtn.getAttribute('data-photourl') : null;
+    const customPhotoName = triggerBtn ? triggerBtn.getAttribute('data-photoname') : null;
+    const isPhoto = (currentVideoData && (currentVideoData.isPhoto || currentVideoData.type === 'photo')) || type === 'photo' || !!customPhotoUrl;
+    const effectiveType = isPhoto ? 'photo' : type;
 
     const originalBtnHtml = triggerBtn ? triggerBtn.innerHTML : '';
     if (triggerBtn) {
@@ -462,7 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (progressSpeed) progressSpeed.textContent = '16.4 MB/s';
     if (progressEta) progressEta.textContent = '⏱ ETA: ~1.2s';
     if (turboStatusStep) turboStatusStep.textContent = '⚡ Connecting to High-Speed CDN Edge Node...';
-    if (progressBytes) progressBytes.textContent = `Multiplexing ${quality}${type === 'audio' ? 'kbps' : 'p'} stream...`;
+    if (progressBytes) progressBytes.textContent = isPhoto ? 'Preparing Full HD Photo...' : `Multiplexing ${quality}${type === 'audio' ? 'kbps' : 'p'} stream...`;
 
     // Step 1 done, move to Step 2
     setTimeout(() => {
@@ -473,11 +622,40 @@ document.addEventListener('DOMContentLoaded', () => {
       progressPercent.textContent = '65%';
       if (progressSpeed) progressSpeed.textContent = '19.8 MB/s';
       if (progressEta) progressEta.textContent = '⏱ ETA: ~0.5s';
-      if (turboStatusStep) turboStatusStep.textContent = '🚀 Extracting High-Definition Stream with Audio...';
+      if (turboStatusStep) turboStatusStep.textContent = isPhoto ? '📸 Downloading Original Resolution Image...' : '🚀 Extracting High-Definition Stream with Audio...';
     }, 400);
 
+    // Fast-path: If user clicked a direct carousel photo item
+    if (customPhotoUrl) {
+      setTimeout(() => {
+        if (step2Dot) step2Dot.classList.add('completed');
+        if (step2Line) step2Line.classList.add('completed');
+        if (step3Dot) step3Dot.classList.add('active', 'completed');
+        progressBarFill.style.width = '100%';
+        progressPercent.textContent = '100%';
+        if (progressSpeed) progressSpeed.textContent = '22.4 MB/s';
+        if (progressEta) progressEta.textContent = '✓ Ready!';
+        if (turboStatusStep) turboStatusStep.textContent = '💾 Saving directly to Device Gallery & Downloads!';
+
+        const filename = customPhotoName || 'instagram_photo_HD.jpg';
+        const finalDownloadUrl = `/api/proxy?url=${encodeURIComponent(customPhotoUrl)}&filename=${encodeURIComponent(filename)}&type=photo`;
+        triggerBrowserDownload(finalDownloadUrl, filename);
+        showSuccessCard(filename, finalDownloadUrl, 'photo');
+        if (triggerBtn) triggerBtn.innerHTML = `<span>✓ Fast Download Started!</span>`;
+      }, 500);
+
+      setTimeout(() => {
+        if (triggerBtn) {
+          triggerBtn.disabled = false;
+          triggerBtn.innerHTML = originalBtnHtml;
+        }
+        progressBox.style.display = 'none';
+      }, 2500);
+      return;
+    }
+
     try {
-      const resolveUrl = `/api/resolve?url=${encodeURIComponent(url)}&quality=${quality}&type=${type}`;
+      const resolveUrl = `/api/resolve?url=${encodeURIComponent(url)}&quality=${quality}&type=${effectiveType}`;
       const response = await fetch(resolveUrl);
       const data = await response.json();
 
@@ -492,8 +670,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (turboStatusStep) turboStatusStep.textContent = '💾 Saving directly to Device Gallery & Downloads!';
 
       if (data && data.success && data.downloadUrl) {
-        const filename = data.filename || `video_${quality}p.${type === 'audio' ? 'mp3' : 'mp4'}`;
-        const finalDownloadUrl = data.streamProxyUrl || `/api/proxy?url=${encodeURIComponent(data.downloadUrl)}&filename=${encodeURIComponent(filename)}&type=${type}`;
+        const isResultPhoto = data.isPhoto || data.type === 'photo' || effectiveType === 'photo';
+        const ext = effectiveType === 'audio' ? 'mp3' : (isResultPhoto ? 'jpg' : 'mp4');
+        const filename = data.filename || `media_${quality}p.${ext}`;
+        const finalDownloadUrl = data.streamProxyUrl || `/api/proxy?url=${encodeURIComponent(data.downloadUrl)}&filename=${encodeURIComponent(filename)}&type=${effectiveType}`;
 
         if (currentVideoData) {
           currentVideoData.resolvedUrl = data.downloadUrl;
@@ -501,16 +681,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         triggerBrowserDownload(finalDownloadUrl, filename);
-        showSuccessCard(filename, finalDownloadUrl, type);
+        showSuccessCard(filename, finalDownloadUrl, effectiveType);
         if (triggerBtn) triggerBtn.innerHTML = `<span>✓ Fast Download Started!</span>`;
       } else {
-        const errMsg = (data && data.error) ? data.error : 'Could not extract direct media stream. Please verify the video link is public.';
+        const errMsg = (data && data.error) ? data.error : 'Could not extract direct media stream. Please verify the link is public.';
         alert(errMsg);
         if (triggerBtn) triggerBtn.innerHTML = `<span>Download Failed</span>`;
       }
     } catch (err) {
       console.warn('Fast DL error:', err);
-      alert('Unable to extract direct stream for this link right now. Please check if the video is public and accessible.');
+      alert('Unable to extract direct stream for this link right now. Please check if the link is public and accessible.');
       if (triggerBtn) triggerBtn.innerHTML = `<span>Download Failed</span>`;
     } finally {
       setTimeout(() => {
@@ -553,7 +733,8 @@ document.addEventListener('DOMContentLoaded', () => {
       directSaveFileBtn.href = downloadUrl;
       directSaveFileBtn.setAttribute('download', filename);
       if (directSaveText) {
-        directSaveText.textContent = `Save ${type === 'audio' ? 'MP3' : 'MP4'} File`;
+        const typeLabel = type === 'audio' ? 'MP3 Audio' : (type === 'photo' ? 'HD Photo' : 'MP4 Video');
+        directSaveText.textContent = `Save ${typeLabel} File`;
       }
     }
     successCard.style.display = 'block';

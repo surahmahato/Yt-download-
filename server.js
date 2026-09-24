@@ -882,19 +882,21 @@ async function extractTikTok(url) {
 }
 
 async function extractInstagram(url, quality = '720', type = 'video') {
-  // Method 1: SaveIG (saveig.to) API with safe VM script decoding
-  try {
-    const homeRes = await fetch('https://saveig.to/en', {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-      },
-      signal: AbortSignal.timeout(6000)
-    });
-    const html = await homeRes.text();
-    const expMatch = html.match(/k_exp="([^"]+)"/);
-    const tokenMatch = html.match(/k_token="([^"]+)"/);
-    if (expMatch && tokenMatch) {
+  // Helper to query SaveIG API with specified type
+  async function querySaveIg(targetType = 'media') {
+    try {
+      const homeRes = await fetch('https://saveig.to/en', {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        },
+        signal: AbortSignal.timeout(6000)
+      });
+      const html = await homeRes.text();
+      const expMatch = html.match(/k_exp="([^"]+)"/);
+      const tokenMatch = html.match(/k_token="([^"]+)"/);
+      if (!expMatch || !tokenMatch) return null;
+
       const searchRes = await fetch('https://saveig.to/api/ajaxSearch', {
         method: 'POST',
         headers: {
@@ -908,81 +910,177 @@ async function extractInstagram(url, quality = '720', type = 'video') {
           k_exp: expMatch[1],
           k_token: tokenMatch[1],
           q: url,
-          t: 'media',
+          t: targetType,
           lang: 'en',
           v: 'v2'
         }).toString(),
-        signal: AbortSignal.timeout(8000)
+        signal: AbortSignal.timeout(9000)
       });
       const data = await searchRes.json();
-      if (data && data.data) {
-        let decodedHtml = '';
-        const mockElem = { set innerHTML(val) { decodedHtml += val; }, get innerHTML() { return decodedHtml; } };
-        const sandbox = {
-          document: { getElementById: () => mockElem, querySelector: () => mockElem, querySelectorAll: () => [mockElem] },
-          window: { location: { hostname: 'saveig.to', href: 'https://saveig.to/en' } },
-          location: { hostname: 'saveig.to', href: 'https://saveig.to/en' },
-          console: { log: () => {} }
-        };
-        vm.createContext(sandbox);
-        try {
-          vm.runInContext(data.data, sandbox, { timeout: 3000 });
-        } catch (ve) {
-          decodedHtml = data.data;
+      return (data && data.data) ? data.data : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Method 1: SaveIG with robust video/photo discrimination
+  try {
+    let rawData = await querySaveIg('media');
+    if (!rawData) rawData = await querySaveIg('reels');
+    if (!rawData) rawData = await querySaveIg('video');
+
+    if (rawData) {
+      let decodedHtml = '';
+      const mockElem = { set innerHTML(val) { decodedHtml += val; }, get innerHTML() { return decodedHtml; } };
+      const sandbox = {
+        document: { getElementById: () => mockElem, querySelector: () => mockElem, querySelectorAll: () => [mockElem] },
+        window: { location: { hostname: 'saveig.to', href: 'https://saveig.to/en' } },
+        location: { hostname: 'saveig.to', href: 'https://saveig.to/en' },
+        console: { log: () => {} }
+      };
+      vm.createContext(sandbox);
+      try {
+        vm.runInContext(rawData, sandbox, { timeout: 3000 });
+      } catch (ve) {
+        decodedHtml = rawData;
+      }
+
+      const anchorMatches = [...decodedHtml.matchAll(/<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
+      const videoCandidates = [];
+      const photoCandidates = [];
+
+      for (const m of anchorMatches) {
+        const href = m[1];
+        const innerText = m[2].replace(/<[^>]+>/g, '').trim().toLowerCase();
+        if (!href.includes('snapcdn') && !href.includes('saveig') && !href.includes('instagram.com') && !href.includes('fbcdn.net')) {
+          continue;
         }
 
-        const hrefs = [...decodedHtml.matchAll(/href=["']([^"']+)["']/g)].map(m => m[1]);
-        const snapLinks = hrefs.filter(h => h.includes('dl.snapcdn.app') || h.includes('instagram.com') || h.includes('fbcdn.net'));
-        const thumbMatch = decodedHtml.match(/<img[^>]+src=["']([^"']+)["']/i);
-        const thumb = thumbMatch ? thumbMatch[1] : '';
+        let filename = '';
+        let directUrl = '';
+        const tokenParam = href.match(/[?&]token=([^&]+)/);
+        if (tokenParam) {
+          try {
+            const payload = JSON.parse(Buffer.from(tokenParam[1].split('.')[1], 'base64').toString());
+            if (payload.filename) filename = payload.filename;
+            if (payload.url) directUrl = payload.url;
+          } catch (e) {}
+        }
 
-        if (snapLinks.length > 0) {
-          const directDl = snapLinks[0];
-          let filename = 'instagram_media.mp4';
-          const tokenParam = directDl.match(/[?&]token=([^&]+)/);
-          if (tokenParam) {
-            try {
-              const payload = JSON.parse(Buffer.from(tokenParam[1].split('.')[1], 'base64').toString());
-              if (payload.filename) filename = payload.filename;
-            } catch (e) {}
-          }
-          const isPhoto = /\.(jpg|jpeg|png|webp)/i.test(filename) || /\.(jpg|jpeg|png|webp)/i.test(directDl);
+        const isVideoExt = /\.(mp4|m4v|mov|webm)/i.test(filename) || /\.(mp4|m4v|mov|webm)/i.test(href) || /\.(mp4|m4v|mov|webm)/i.test(directUrl);
+        const isVideoText = innerText.includes('video') || innerText.includes('download mp4') || innerText.includes('watch') || innerText.includes('reel');
+        const isPhotoExt = /\.(jpg|jpeg|png|webp)/i.test(filename) || /\.(jpg|jpeg|png|webp)/i.test(href) || /\.(jpg|jpeg|png|webp)/i.test(directUrl);
+        const isPhotoText = innerText.includes('photo') || innerText.includes('image') || innerText.includes('picture');
+
+        const candidate = {
+          downloadUrl: href,
+          directUrl: directUrl || href,
+          filename: filename || (isVideoExt ? 'instagram_video.mp4' : 'instagram_photo.jpg'),
+          text: innerText
+        };
+
+        if (isVideoExt || (isVideoText && !isPhotoExt)) {
+          videoCandidates.push(candidate);
+        } else if (isPhotoExt || isPhotoText) {
+          photoCandidates.push(candidate);
+        } else {
+          if (href.includes('video')) videoCandidates.push(candidate);
+          else photoCandidates.push(candidate);
+        }
+      }
+
+      const thumbMatch = decodedHtml.match(/<img[^>]+src=["']([^"']+)["']/i);
+      const thumb = thumbMatch ? thumbMatch[1] : (photoCandidates[0]?.directUrl || '');
+
+      const isReelOrVideoUrl = /\/(reel|reels|tv)\//i.test(url) || type === 'video' || type === 'audio';
+
+      // If video requested or the link is definitely a video/reel
+      if (isReelOrVideoUrl || type !== 'photo') {
+        if (videoCandidates.length > 0) {
+          // Sort to pick 1080p or highest resolution video if available
+          const chosenVideo = videoCandidates.find(v => v.filename.includes('1080') || v.text.includes('1080')) || videoCandidates[0];
           return {
-            downloadUrl: directDl,
-            title: filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ') || 'Instagram Media',
-            thumbnail: thumb || directDl,
+            downloadUrl: chosenVideo.downloadUrl,
+            title: chosenVideo.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ') || 'Instagram Reel Video',
+            thumbnail: thumb || chosenVideo.downloadUrl,
             duration: 30,
             durationLabel: '00:30',
             author: 'Instagram Creator',
             platform: 'Instagram',
-            quality: isPhoto ? 'Original HD' : `${quality}p`,
-            type: isPhoto ? 'photo' : (type === 'audio' ? 'audio' : 'video')
+            quality: `${quality}p`,
+            type: type === 'audio' ? 'audio' : 'video',
+            isPhoto: false
           };
         }
+        // Do NOT return a photo candidate when the user is trying to download a video/reel!
+        // Fall through to other extraction methods instead.
+      }
+
+      // If photo requested OR if the post is NOT a reel/video and no video was found
+      if ((type === 'photo' || !isReelOrVideoUrl) && photoCandidates.length > 0) {
+        const chosenPhoto = photoCandidates[0];
+        return {
+          downloadUrl: chosenPhoto.downloadUrl,
+          title: chosenPhoto.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ') || 'Instagram High-Res Photo',
+          thumbnail: thumb || chosenPhoto.directUrl || chosenPhoto.downloadUrl,
+          duration: 0,
+          durationLabel: 'Photo HD',
+          author: 'Instagram Creator',
+          platform: 'Instagram',
+          quality: 'Original HD',
+          type: 'photo',
+          isPhoto: true,
+          photos: photoCandidates.map(p => ({
+            downloadUrl: p.downloadUrl,
+            directUrl: p.directUrl,
+            filename: p.filename
+          }))
+        };
       }
     }
   } catch (e) {
     console.warn('[SaveIG extract error]:', e.message);
   }
 
+  const isReelOrVideoUrl = /\/(reel|reels|tv)\//i.test(url) || type === 'video' || type === 'audio';
+
   // Method 2: cakkatrokDownloader (snapvideo.app integration)
   if (cakkatrokDownloader) {
     try {
       const res = await cakkatrokDownloader(url);
       if (res && Array.isArray(res.media) && res.media.length > 0) {
-        const primary = res.media.find(m => m.type === 'video') || res.media[0];
-        const isPhoto = primary.type === 'photo' || /\.(jpg|jpeg|png|webp)/i.test(primary.url);
-        return {
-          downloadUrl: primary.url,
-          title: primary.filename ? primary.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ') : 'Instagram Media',
-          thumbnail: (res.media.find(m => m.type === 'photo') || primary).url,
-          duration: 30,
-          durationLabel: '00:30',
-          author: 'Instagram Creator',
-          platform: 'Instagram',
-          quality: isPhoto ? 'Original HD' : `${quality}p`,
-          type: isPhoto ? 'photo' : (type === 'audio' ? 'audio' : 'video')
-        };
+        const vidItem = res.media.find(m => m.type === 'video');
+        const photoItem = res.media.find(m => m.type === 'photo') || res.media[0];
+
+        if (vidItem) {
+          return {
+            downloadUrl: vidItem.url,
+            title: vidItem.filename ? vidItem.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ') : 'Instagram Reel Video',
+            thumbnail: photoItem.url,
+            duration: 30,
+            durationLabel: '00:30',
+            author: 'Instagram Creator',
+            platform: 'Instagram',
+            quality: `${quality}p`,
+            type: type === 'audio' ? 'audio' : 'video',
+            isPhoto: false
+          };
+        }
+
+        if (!isReelOrVideoUrl && (type === 'photo' || !vidItem)) {
+          return {
+            downloadUrl: photoItem.url,
+            title: photoItem.filename ? photoItem.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ') : 'Instagram Photo',
+            thumbnail: photoItem.url,
+            duration: 0,
+            durationLabel: 'Photo HD',
+            author: 'Instagram Creator',
+            platform: 'Instagram',
+            quality: 'Original HD',
+            type: 'photo',
+            isPhoto: true
+          };
+        }
       }
     } catch (e) {
       console.warn('[cakkatrok extract error]:', e.message);
@@ -1020,30 +1118,48 @@ async function extractInstagram(url, quality = '720', type = 'video') {
       if (sData && sData.data) {
         const hrefs = [...String(sData.data).matchAll(/href=["']([^"']+)["']/g)].map(m => m[1]);
         const links = hrefs.filter(h => h.includes('snapcdn.app') || h.includes('instagram.com') || h.includes('fbcdn.net'));
-        if (links.length > 0) {
+        const vLinks = links.filter(l => /\.(mp4|webm)/i.test(l) || l.includes('video'));
+        const pLinks = links.filter(l => /\.(jpg|jpeg|png|webp)/i.test(l) || l.includes('photo'));
+
+        if (vLinks.length > 0) {
           return {
-            downloadUrl: links[0],
-            title: 'Instagram Media',
-            thumbnail: links[0],
+            downloadUrl: vLinks[0],
+            title: 'Instagram Video',
+            thumbnail: pLinks[0] || vLinks[0],
             duration: 30,
             durationLabel: '00:30',
             author: 'Instagram Creator',
             platform: 'Instagram',
             quality: `${quality}p`,
-            type: type
+            type: type === 'audio' ? 'audio' : 'video',
+            isPhoto: false
+          };
+        } else if (!isReelOrVideoUrl && pLinks.length > 0) {
+          return {
+            downloadUrl: pLinks[0],
+            title: 'Instagram High-Res Photo',
+            thumbnail: pLinks[0],
+            duration: 0,
+            durationLabel: 'Photo HD',
+            author: 'Instagram Creator',
+            platform: 'Instagram',
+            quality: 'Original HD',
+            type: 'photo',
+            isPhoto: true
           };
         }
       }
     }
   } catch (e) {}
 
-  // Method 4: yt-dlp fallback
+  // Method 4: yt-dlp fallback (Best Video stream)
   try {
     const ytdlRes = await extractWithYtDlp(url, quality, type);
     if (ytdlRes && ytdlRes.downloadUrl) {
       return {
         ...ytdlRes,
-        platform: 'Instagram'
+        platform: 'Instagram',
+        isPhoto: false
       };
     }
   } catch (e) {}
@@ -1352,18 +1468,20 @@ async function extractUniversalVideo(rawUrl, quality = '720', type = 'video') {
         };
       }
 
-      // Tier 8: Universal Fail-Safe — never reject a valid public web page
-      if (pageThumb || pageTitle) {
+      // Tier 8: Only return image if user explicitly requested photo OR if the URL is not a video/reel
+      const isVideoLink = /\/(reel|reels|watch|video|tv)\//i.test(cleanUrl) || type === 'video' || type === 'audio';
+      if ((type === 'photo' || (!type && !isVideoLink)) && pageThumb) {
         return {
-          downloadUrl: pageThumb || cleanUrl,
+          downloadUrl: pageThumb,
           title: pageTitle,
           thumbnail: pageThumb,
-          duration: 60,
-          durationLabel: '01:00',
+          duration: 0,
+          durationLabel: 'Photo HD',
           author: 'Online Creator',
           platform: 'Social Media',
-          quality: `${quality}p`,
-          type: type
+          quality: 'Original HD',
+          type: 'photo',
+          isPhoto: true
         };
       }
     }
@@ -1381,7 +1499,8 @@ async function extractUniversalVideo(rawUrl, quality = '720', type = 'video') {
     author: 'Creator',
     platform: 'Web Video',
     quality: `${quality}p`,
-    type: type
+    type: type,
+    isPhoto: false
   };
 }
 
@@ -1399,19 +1518,23 @@ async function fetchVideoInfo(rawUrl) {
   try {
     const extracted = await extractUniversalVideo(rawUrl, '720', 'video');
     if (extracted) {
+      const isPhoto = extracted.type === 'photo' || extracted.isPhoto;
       const result = {
         info: {
           id: `media_${Date.now()}`,
-          title: extracted.title || 'Video Media',
+          title: extracted.title || (isPhoto ? 'Instagram Photo' : 'Video Media'),
           thumbnail: extracted.thumbnail || (isInstagram ? 'https://images.unsplash.com/photo-1611262588024-d12430b98920?w=600&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80'),
-          duration: extracted.duration || 60,
-          durationLabel: extracted.durationLabel || '01:00',
-          directVideo: extracted.downloadUrl,
+          duration: extracted.duration || (isPhoto ? 0 : 60),
+          durationLabel: extracted.durationLabel || (isPhoto ? 'Photo HD' : '01:00'),
+          directVideo: isPhoto ? null : extracted.downloadUrl,
           author: extracted.author || 'Creator',
           platform: extracted.platform || (isYouTube ? 'YouTube' : (isTikTok ? 'TikTok' : (isInstagram ? 'Instagram' : 'Web Video'))),
           key: `key_${Date.now()}`,
           isSocial: !isYouTube,
-          originalUrl: rawUrl
+          originalUrl: rawUrl,
+          type: extracted.type || (isPhoto ? 'photo' : 'video'),
+          isPhoto: !!isPhoto,
+          photos: extracted.photos || []
         },
         cdn: 'universal',
         normalizedUrl: rawUrl
@@ -1451,7 +1574,9 @@ async function fetchVideoInfo(rawUrl) {
         key: ytId,
         isSocial: false,
         platform: 'YouTube',
-        originalUrl: rawUrl
+        originalUrl: rawUrl,
+        type: 'video',
+        isPhoto: false
       },
       cdn: 'universal',
       normalizedUrl: rawUrl
@@ -1472,7 +1597,9 @@ async function fetchVideoInfo(rawUrl) {
       platform: isInstagram ? 'Instagram' : (isTikTok ? 'TikTok' : 'Web Video'),
       key: `media_${Date.now()}`,
       isSocial: true,
-      originalUrl: rawUrl
+      originalUrl: rawUrl,
+      type: 'video',
+      isPhoto: false
     },
     cdn: 'universal',
     normalizedUrl: rawUrl
@@ -1489,24 +1616,25 @@ async function requestDownloadLink(cdn, info, quality, type) {
     return cached;
   }
 
-  const cleanTitle = (info.title || 'video')
+  const isInfoPhoto = info.type === 'photo' || info.isPhoto;
+  const cleanTitle = (info.title || (isInfoPhoto ? 'instagram_photo' : 'video'))
     .replace(/[^\w\s.-]/gi, '')
     .trim()
     .replace(/\s+/g, '_')
-    .substring(0, 60) || 'media_download';
-  const ext = type === 'audio' ? 'mp3' : 'mp4';
+    .substring(0, 60) || (isInfoPhoto ? 'photo_download' : 'media_download');
 
   // If info already holds a direct video matching the request
-  if (info.directVideo && type !== 'audio') {
+  if (info.directVideo && type !== 'audio' && !isInfoPhoto) {
     const res = {
       success: true,
       downloadUrl: info.directVideo,
-      filename: `${cleanTitle}_${qualityStr}p.${ext}`,
+      filename: `${cleanTitle}_${qualityStr}p.mp4`,
       title: info.title,
       duration: info.durationLabel || 'HD',
       thumbnail: info.thumbnail,
       quality: `${qualityStr}p`,
-      type: 'video'
+      type: 'video',
+      isPhoto: false
     };
     setCache(cacheKey, res);
     return res;
@@ -1516,16 +1644,22 @@ async function requestDownloadLink(cdn, info, quality, type) {
   const targetUrl = info.originalUrl || info.normalizedUrl || `https://www.youtube.com/watch?v=${info.id || info.key}`;
   const extracted = await extractUniversalVideo(targetUrl, qualityStr, type);
 
+  const isExtractedPhoto = extracted.type === 'photo' || extracted.isPhoto;
+  const ext = type === 'audio' ? 'mp3' : (isExtractedPhoto ? 'jpg' : 'mp4');
   const finalDownloadUrl = extracted.downloadUrl;
   const res = {
     success: true,
     downloadUrl: finalDownloadUrl,
-    filename: `${cleanTitle}_${qualityStr}${type === 'audio' ? 'kbps' : 'p'}.${ext}`,
-    title: extracted.title || info.title || 'Media Video',
-    duration: extracted.durationLabel || info.durationLabel || 'HD',
+    filename: isExtractedPhoto
+      ? `${cleanTitle}_HD.${ext}`
+      : `${cleanTitle}_${qualityStr}${type === 'audio' ? 'kbps' : 'p'}.${ext}`,
+    title: extracted.title || info.title || (isExtractedPhoto ? 'High-Res Photo' : 'Media Video'),
+    duration: extracted.durationLabel || info.durationLabel || (isExtractedPhoto ? 'Photo HD' : 'HD'),
     thumbnail: extracted.thumbnail || info.thumbnail,
-    quality: extracted.quality || `${qualityStr}${type === 'audio' ? 'kbps' : 'p'}`,
-    type: type
+    quality: extracted.quality || (isExtractedPhoto ? 'Original HD' : `${qualityStr}${type === 'audio' ? 'kbps' : 'p'}`),
+    type: isExtractedPhoto ? 'photo' : (type === 'audio' ? 'audio' : 'video'),
+    isPhoto: isExtractedPhoto,
+    photos: extracted.photos || []
   };
 
   setCache(cacheKey, res);
@@ -1733,14 +1867,17 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const { info, normalizedUrl } = await fetchVideoInfo(videoUrl);
+      const isPhoto = info.type === 'photo' || !!info.isPhoto;
 
-      const availableQualities = [
-        { quality: '1080', label: '1080p (Full HD)', type: 'video', ext: 'mp4', badge: 'Full HD' },
-        { quality: '720', label: '720p (HD)', type: 'video', ext: 'mp4', badge: 'HD' },
-        { quality: '480', label: '480p (Standard)', type: 'video', ext: 'mp4', badge: 'SD' },
-        { quality: '360', label: '360p (Fast Download)', type: 'video', ext: 'mp4', badge: 'Mobile' },
-        { quality: '320', label: 'MP3 Audio (320 kbps)', type: 'audio', ext: 'mp3', badge: 'MP3 HQ' },
-        { quality: '128', label: 'MP3 Audio (128 kbps)', type: 'audio', ext: 'mp3', badge: 'MP3' }
+      const availableQualities = isPhoto ? [
+        { quality: '1080', label: 'Original Resolution (Full HD) JPG', type: 'photo', ext: 'jpg', badge: 'Original HD Photo' }
+      ] : [
+        { quality: '1080', label: '1080p (Full HD)', type: 'video', ext: 'mp4', badge: '1080p Full HD' },
+        { quality: '720', label: '720p (HD Standard)', type: 'video', ext: 'mp4', badge: '720p HD' },
+        { quality: '480', label: '480p (Standard)', type: 'video', ext: 'mp4', badge: '480p SD' },
+        { quality: '360', label: '360p (Fast / Data Saver)', type: 'video', ext: 'mp4', badge: '360p Fast' },
+        { quality: '320', label: 'MP3 Audio (320 kbps Studio)', type: 'audio', ext: 'mp3', badge: '320kbps MP3' },
+        { quality: '128', label: 'MP3 Audio (128 kbps Standard)', type: 'audio', ext: 'mp3', badge: '128kbps MP3' }
       ];
 
       res.writeHead(200, {
@@ -1759,6 +1896,9 @@ const server = http.createServer(async (req, res) => {
           channel: info.author || info.uploader || (info.isSocial ? info.platform : 'YouTube Creator'),
           formats: availableQualities,
           platform: info.platform || 'YouTube',
+          type: isPhoto ? 'photo' : (info.type || 'video'),
+          isPhoto: isPhoto,
+          photos: info.photos || [],
           normalizedUrl
         }
       }));
@@ -1904,18 +2044,22 @@ const server = http.createServer(async (req, res) => {
       const upstreamContentType = proxyRes.headers.get('content-type') || '';
       let finalContentType = contentType;
       let finalFilename = safeFilename;
-      if (upstreamContentType.includes('image/')) {
-        finalContentType = upstreamContentType;
-        if (!/\.(jpg|jpeg|png|webp)$/i.test(finalFilename)) {
-          finalFilename = finalFilename.replace(/\.[^/.]+$/, '') + '.jpg';
+
+      if (type === 'video') {
+        finalContentType = upstreamContentType.includes('video/') ? upstreamContentType : 'video/mp4';
+        if (!/\.(mp4|m4v|mov|webm)$/i.test(finalFilename)) {
+          finalFilename = finalFilename.replace(/\.[^/.]+$/, '') + '.mp4';
         }
-      } else if (upstreamContentType.includes('audio/')) {
-        finalContentType = upstreamContentType;
+      } else if (type === 'audio') {
+        finalContentType = upstreamContentType.includes('audio/') ? upstreamContentType : 'audio/mpeg';
         if (!/\.(mp3|m4a|aac|wav)$/i.test(finalFilename)) {
           finalFilename = finalFilename.replace(/\.[^/.]+$/, '') + '.mp3';
         }
-      } else if (upstreamContentType.includes('video/')) {
-        finalContentType = upstreamContentType;
+      } else if (type === 'photo') {
+        finalContentType = upstreamContentType.includes('image/') ? upstreamContentType : 'image/jpeg';
+        if (!/\.(jpg|jpeg|png|webp)$/i.test(finalFilename)) {
+          finalFilename = finalFilename.replace(/\.[^/.]+$/, '') + '.jpg';
+        }
       }
 
       const cleanAscii = finalFilename.replace(/[^a-zA-Z0-9._-]/g, '_');

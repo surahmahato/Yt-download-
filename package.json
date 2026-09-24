@@ -25,7 +25,12 @@
     "@distube/ytdl-core": "^4.16.12",
     "@jerrycoder/instagram-api": "^2.5.9",
     "@vreden/youtube_scraper": "^1.2.9",
+    "ab-downloader": "^2.0.0",
     "axios": "^1.7.9",
-    "cakkatrok-instagram-downloader": "^2.0.2"
+    "btch-downloader": "^6.4.0",
+    "cakkatrok-instagram-downloader": "^2.0.2",
+    "instagram-url-direct": "^2.0.7",
+    "snapsave-media-downloader": "^2.5.1",
+    "snapsaver-downloader": "^1.0.3"
   }
 }
