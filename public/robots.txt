@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /api/proxy
+Disallow: /api/fast-download
 
 Sitemap: https://ytdownload-ti50.onrender.com/sitemap.xml

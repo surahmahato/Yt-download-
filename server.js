@@ -54,6 +54,8 @@ const MIME_TYPES = {
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -1716,10 +1718,18 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Health check endpoint
-  if (reqPath === '/healthz' || reqPath === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }));
+  // Health check & ping endpoint (used for keep-alive monitoring and search indexing)
+  if (reqPath === '/healthz' || reqPath === '/health' || reqPath === '/api/health' || reqPath === '/ping') {
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-cache'
+    });
+    res.end(JSON.stringify({
+      status: 'ok',
+      uptime: Math.round(process.uptime()),
+      timestamp: new Date().toISOString()
+    }));
     return;
   }
 
@@ -2154,7 +2164,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // -----------------------------------------------------------
-  // STATIC FILES HANDLING
+  // STATIC FILES HANDLING & STRICT 404 (PREVENT SOFT 404S)
   // -----------------------------------------------------------
   let filePath = path.join(PUBLIC_DIR, reqPath);
   if (!fs.existsSync(filePath)) {
@@ -2170,29 +2180,39 @@ const server = http.createServer(async (req, res) => {
 
   fs.stat(resolvedPath, (err, stats) => {
     if (err || !stats.isFile()) {
-      // If asking for /news or not found, fallback appropriately
-      const fallbackFile = reqPath.includes('news') ? 'news.html' : 'index.html';
-      const fallbackPath = path.join(PUBLIC_DIR, fallbackFile);
-      fs.readFile(fallbackPath, (readErr, content) => {
-        if (readErr) {
-          res.writeHead(404, { 'Content-Type': 'text/plain' });
-          res.end('404 Not Found');
-        } else {
-          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-          res.end(content);
-        }
+      // Return true HTTP 404 to avoid Google Soft 404 indexing penalties
+      res.writeHead(404, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'X-Robots-Tag': 'noindex, nofollow'
       });
+      res.end(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>404 Not Found - YT Download</title><meta name="robots" content="noindex, nofollow"><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body{font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:80px 20px;color:#1e293b;background:#f8fafc;}h1{font-size:2rem;color:#e50914;}p{color:#64748b;font-size:1.1rem;}a{display:inline-block;margin-top:20px;padding:12px 24px;background:#e50914;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;}</style></head><body><h1>404 - Page Not Found</h1><p>The requested page or media was not found on this server.</p><a href="/">&larr; Return to YT Download</a></body></html>`);
       return;
     }
 
     const ext = path.extname(resolvedPath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    const isHtml = ext === '.html';
+    const isXml = ext === '.xml';
+    const isTxt = ext === '.txt';
+
     const headers = {
       'Content-Type': contentType,
-      'Cache-Control': ext === '.apk' ? 'no-cache, no-store, must-revalidate' : 'public, max-age=3600'
+      'X-Content-Type-Options': 'nosniff'
     };
 
-    const urlObj = new URL(req.url, `http://${req.headers.host}`);
+    if (isHtml) {
+      headers['Cache-Control'] = 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=600';
+      headers['X-Frame-Options'] = 'SAMEORIGIN';
+      headers['Referrer-Policy'] = 'strict-origin-when-cross-origin';
+    } else if (isXml || isTxt) {
+      headers['Cache-Control'] = 'public, max-age=3600';
+    } else if (ext === '.apk') {
+      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    } else {
+      headers['Cache-Control'] = 'public, max-age=86400';
+    }
+
+    const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     if (urlObj.searchParams.get('download') === '1' || ext === '.apk') {
       const downloadFilename = urlObj.searchParams.get('filename') || path.basename(resolvedPath);
       headers['Content-Disposition'] = `attachment; filename="${downloadFilename}"`;
@@ -2200,7 +2220,13 @@ const server = http.createServer(async (req, res) => {
 
     res.writeHead(200, headers);
     const stream = fs.createReadStream(resolvedPath);
-    stream.on('error', (e) => console.error('[Static Stream Error]', e.message));
+    stream.on('error', (e) => {
+      console.error('[Static Stream Error]', e.message);
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('500 Internal Server Error');
+      }
+    });
     stream.pipe(res);
   });
 });
@@ -2224,3 +2250,26 @@ server.on('error', (err) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`YT Download & Google News server running live on port ${PORT}`);
 });
+
+// -------------------------------------------------------------
+// RENDER FREE TIER KEEP-ALIVE (Prevents Instance Cold Sleep)
+// -------------------------------------------------------------
+function startRenderKeepAlive() {
+  const RENDER_DOMAIN = process.env.RENDER_EXTERNAL_URL || 'https://ytdownload-ti50.onrender.com';
+  // Ping every 10 minutes (Render free tier goes to sleep after 15 minutes of inactivity)
+  const KEEP_ALIVE_INTERVAL = 10 * 60 * 1000;
+  setInterval(() => {
+    try {
+      const pingUrl = `${RENDER_DOMAIN}/api/health`;
+      const client = pingUrl.startsWith('https') ? https : http;
+      client.get(pingUrl, { timeout: 10000 }, (res) => {
+        // Render ping received successfully
+      }).on('error', () => {
+        // Silently catch background ping network retries
+      });
+    } catch (e) {}
+  }, KEEP_ALIVE_INTERVAL);
+}
+
+startRenderKeepAlive();
+
