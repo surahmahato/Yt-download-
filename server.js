@@ -1703,10 +1703,18 @@ const server = http.createServer(async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   let reqPath = parsedUrl.pathname;
 
-  if (reqPath === '/') {
-    reqPath = '/index.html';
-  } else if (reqPath === '/news') {
-    reqPath = '/news.html';
+  const cleanRoutes = {
+    '/': '/index.html',
+    '/news': '/news.html',
+    '/about': '/about.html',
+    '/dmca': '/dmca.html',
+    '/privacy': '/privacy.html',
+    '/terms': '/terms.html',
+    '/contact': '/contact.html'
+  };
+
+  if (cleanRoutes[reqPath]) {
+    reqPath = cleanRoutes[reqPath];
   }
 
   // Rate Limiting (120 req/min for static pages, 40 req/min for APIs)

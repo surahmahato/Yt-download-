@@ -310,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let channel = 'Social Media Creator';
     let duration = '01:23';
     let views = 'High Definition';
-    let ytInfo = extractYouTubeId(url);
+    const ytInfo = extractYouTubeId(url);
 
     // Initial local guess based on platform
     const lower = url.toLowerCase();
@@ -953,6 +953,56 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
       `
+    },
+    dmca: {
+      title: 'DMCA & Copyright Compliance Policy',
+      html: `
+        <div style="display:flex;flex-direction:column;gap:18px;">
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+              <span style="font-size:1.4rem;">🛡️</span>
+              <strong style="color:#166534;font-size:1.05rem;">Safe, Legitimate & Non-Hosting Technical Utility</strong>
+            </div>
+            <p style="color:#166534;margin:0;font-size:0.9rem;line-height:1.6;">
+              YT Download operates strictly as an automated, user-directed technical utility. We do <strong>not</strong> host, store, stream, or index any copyrighted audio or video files on our servers. All media requests are executed in real time directly from public platforms by the requesting end-user for personal, non-commercial, and fair-use archiving purposes.
+            </p>
+          </div>
+
+          <div>
+            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">1. Compliance with the Digital Millennium Copyright Act (17 U.S.C. § 512)</h4>
+            <p style="color:#334155;line-height:1.6;">
+              YT Download respects the intellectual property rights of creators and content owners worldwide. It is our strict policy to respond promptly to clear, formal notices of alleged copyright infringement in accordance with the Digital Millennium Copyright Act (DMCA).
+            </p>
+          </div>
+
+          <div style="background:#f8fafc;border-left:4px solid #2563eb;padding:14px 16px;border-radius:4px;">
+            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">2. Notice and Takedown Procedure</h4>
+            <p style="color:#334155;line-height:1.6;">
+              If you are a copyright holder or an authorized representative thereof and believe that any link or content accessed through this service infringes upon your copyright, please send a written takedown notice to our designated copyright agent containing:
+            </p>
+            <ul style="padding-left:20px;color:#334155;line-height:1.7;font-size:0.9rem;">
+              <li>Identification of the copyrighted work claimed to have been infringed.</li>
+              <li>Identification of the specific material or URL(s) to be disabled.</li>
+              <li>Your contact information (name, address, telephone number, and email address).</li>
+              <li>A statement that you have a good-faith belief that use of the material is not authorized by the copyright owner, its agent, or the law.</li>
+              <li>A statement made under penalty of perjury that the information in the notification is accurate and that you are authorized to act on behalf of the copyright owner.</li>
+            </ul>
+          </div>
+
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px;">
+            <h4 style="font-size:1rem;margin-bottom:4px;color:#991b1b;">📬 Designated Copyright Agent</h4>
+            <p style="font-size:0.9rem;color:#7f1d1d;margin:0 0 8px 0;">All formal copyright and DMCA correspondence will be processed within 24 to 48 hours:</p>
+            <div style="font-weight:700;color:#dc2626;">Email: <a href="mailto:xinghsuraj733@gmail.com" style="color:#dc2626;text-decoration:underline;">xinghsuraj733@gmail.com</a></div>
+          </div>
+
+          <div>
+            <h4 style="font-size:1rem;margin-bottom:6px;color:var(--text-main);">3. Repeat Infringer Policy</h4>
+            <p style="color:var(--text-muted);line-height:1.6;font-size:0.9rem;">
+              In accordance with Section 512(i)(1)(A) of the DMCA, YT Download maintains a policy that reserves the right to terminate access or block URLs from repeat infringers who unlawfully utilize this service.
+            </p>
+          </div>
+        </div>
+      `
     }
   };
 
@@ -966,6 +1016,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function closeInfoModal() {
     infoModal.style.display = 'none';
+  }
+
+  const dmcaPolicyLink = document.getElementById('dmcaPolicyLink');
+  if (dmcaPolicyLink) {
+    dmcaPolicyLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      openInfoModal('dmca');
+    });
   }
 
   if (termsConditionsLink) {
