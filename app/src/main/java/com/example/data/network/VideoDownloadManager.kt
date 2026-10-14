@@ -87,6 +87,7 @@ class VideoDownloadManager(private val context: Context) {
         "http://10.0.2.2:3000",
         "http://127.0.0.1:3000",
         "http://localhost:3000",
+        "https://ytdownload-ti50.onrender.com",
         "https://ais-dev-qh7uqllyiafbd5fnubah2o-522395678106.asia-east1.run.app",
         "https://ais-pre-qh7uqllyiafbd5fnubah2o-522395678106.asia-east1.run.app"
     )
@@ -614,26 +615,36 @@ class VideoDownloadManager(private val context: Context) {
                         val videoTitle = decodedInfo.optString("title").takeIf { it.isNotBlank() } ?: resolvedTitle
                         if (key.isBlank()) continue
 
-                        val qualityVal = if (format.type == "audio") "128" else format.resolution.replace("p", "")
-                        val dlPayload = JSONObject().apply {
-                            put("downloadType", if (format.type == "audio") "audio" else "video")
-                            put("quality", qualityVal)
-                            put("key", key)
+                        val baseQuality = if (format.type == "audio") "128" else format.resolution.replace("p", "")
+                        val qualitiesToAttempt = if (format.type == "audio") {
+                            listOf(baseQuality, "320", "mp3")
+                        } else {
+                            listOf(baseQuality, "720", "360", "480", "1080").distinct()
                         }
-                        val dlReq = Request.Builder()
-                            .url("https://$cdn/download")
-                            .post(dlPayload.toString().toRequestBody(jsonMediaType))
-                            .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36")
-                            .header("Referer", "https://save-tube.com/")
-                            .build()
-                        val dlResp = httpClient.newCall(dlReq).execute()
-                        if (dlResp.isSuccessful) {
-                            val dlJson = JSONObject(dlResp.body?.string() ?: "")
-                            val dlUrl = dlJson.optJSONObject("data")?.optString("downloadUrl")
-                                ?: dlJson.optString("downloadUrl")
-                            if (!dlUrl.isNullOrBlank()) {
-                                return Pair(dlUrl, videoTitle)
-                            }
+
+                        for (qualityVal in qualitiesToAttempt) {
+                            try {
+                                val dlPayload = JSONObject().apply {
+                                    put("downloadType", if (format.type == "audio") "audio" else "video")
+                                    put("quality", qualityVal)
+                                    put("key", key)
+                                }
+                                val dlReq = Request.Builder()
+                                    .url("https://$cdn/download")
+                                    .post(dlPayload.toString().toRequestBody(jsonMediaType))
+                                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36")
+                                    .header("Referer", "https://save-tube.com/")
+                                    .build()
+                                val dlResp = httpClient.newCall(dlReq).execute()
+                                if (dlResp.isSuccessful) {
+                                    val dlJson = JSONObject(dlResp.body?.string() ?: "")
+                                    val dlUrl = dlJson.optJSONObject("data")?.optString("downloadUrl")
+                                        ?: dlJson.optString("downloadUrl")
+                                    if (!dlUrl.isNullOrBlank()) {
+                                        return Pair(dlUrl, videoTitle)
+                                    }
+                                }
+                            } catch (_: Exception) {}
                         }
                     } catch (_: Exception) {}
                 }
@@ -698,9 +709,12 @@ class VideoDownloadManager(private val context: Context) {
             }
         } catch (_: Exception) {}
 
-        // Tier 7: Universal 100% Download Anyways Guarantee
-        // Use provided link directly so no video is ever rejected!
-        return Pair(originalUrl, null)
+        // Universal fallback: only return originalUrl if it is already a direct media file
+        if (originalUrl.endsWith(".mp4", true) || originalUrl.endsWith(".webm", true) ||
+            originalUrl.endsWith(".mp3", true) || originalUrl.contains(".googlevideo.com")) {
+            return Pair(originalUrl, null)
+        }
+        return Pair(null, null)
     }
 
     /**
@@ -717,7 +731,8 @@ class VideoDownloadManager(private val context: Context) {
             var targetStreamUrl = metadata.downloadStreamUrl
             var finalTitle = metadata.title
 
-            if (targetStreamUrl.isBlank() || !targetStreamUrl.startsWith("http")) {
+            if (targetStreamUrl.isBlank() || !targetStreamUrl.startsWith("http") ||
+                targetStreamUrl.contains("youtube.com/watch") || targetStreamUrl.contains("youtube.com/shorts")) {
                 val (resolvedUrl, resolvedTitle) = resolveDirectMediaStream(
                     metadata.originalUrl,
                     metadata.platform,
@@ -731,9 +746,9 @@ class VideoDownloadManager(private val context: Context) {
                 }
             }
 
-            // Universal fallback: if still blank, use the original URL provided
-            if (targetStreamUrl.isBlank()) {
-                targetStreamUrl = metadata.originalUrl
+            if (targetStreamUrl.isBlank() || targetStreamUrl.contains("youtube.com/watch") || targetStreamUrl.contains("youtube.com/shorts")) {
+                _downloadState.value = DownloadState.Failed("Could not extract a downloadable direct stream for this video. The video may be private, age-restricted, or protected.")
+                return@withContext false
             }
 
             // Create network request for the resolved stream
@@ -749,6 +764,8 @@ class VideoDownloadManager(private val context: Context) {
                 reqBuilder.header("Referer", "https://www.tiktok.com/")
             } else if (targetStreamUrl.contains("instagram")) {
                 reqBuilder.header("Referer", "https://www.instagram.com/")
+            } else if (targetStreamUrl.contains("savetube")) {
+                reqBuilder.header("Referer", "https://save-tube.com/")
             }
 
             val call = httpClient.newCall(reqBuilder.build())

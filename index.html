@@ -413,22 +413,25 @@
           </div>
 
           <!-- Completed Success Card -->
-          <div id="downloadSuccessCard" class="download-success-card">
-            <div class="success-icon">✓</div>
-            <div class="success-title">Video Saved to Your Phone!</div>
-            <p class="success-desc">The file is 100% playable with complete duration and audio.</p>
+          <!-- Completed Success Card -->
+          <div id="downloadSuccessCard" class="download-success-card" style="display:none;">
+            <div class="success-icon" style="font-size:2.5rem;color:#10b981;margin-bottom:8px;">✓</div>
+            <div class="success-title" id="successCardTitle" style="font-size:1.35rem;font-weight:800;color:#0f172a;margin-bottom:4px;">Your Video is Ready!</div>
+            <p class="success-desc" id="successCardDesc" style="color:#64748b;font-size:0.92rem;margin-bottom:16px;">Download starting automatically. Tap the green button below if your browser did not start it.</p>
 
-            <div class="gallery-path-info">
-              <div class="path-badge">📁 Saved to: <strong>Internal Storage &gt; Download folder</strong></div>
-              <p class="path-tip">Check your phone's <strong>Gallery app</strong> under the <em>"Download"</em> album or open <strong>Google Photos / Mi Video</strong>.</p>
+            <!-- Prominent Direct Download Button (Never Blocked by Mobile Chrome) -->
+            <a id="directSaveFileBtn" class="hero-dl-action-button" href="#" download="" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg, #10b981, #059669);color:#ffffff;padding:16px 24px;border-radius:12px;font-size:1.15rem;font-weight:800;margin:0 auto 16px;max-width:440px;box-shadow:0 6px 20px rgba(16,185,129,0.35);cursor:pointer;transition:all 0.2s ease;">
+              <svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              <span id="directSaveText">⬇️ Download Video (MP4)</span>
+            </a>
+
+            <div class="gallery-path-info" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:16px;text-align:left;">
+              <div class="path-badge" style="font-size:0.88rem;color:#334155;">📁 File Destination: <strong>Internal Storage &gt; Download folder</strong></div>
+              <p class="path-tip" style="font-size:0.82rem;color:#64748b;margin:4px 0 0;">Check your phone's <strong>Downloads</strong> folder or <strong>Gallery app</strong> once saved.</p>
             </div>
 
-            <div class="success-actions">
-              <a id="directSaveFileBtn" class="btn-primary-preview" href="#" download="" style="text-decoration:none;display:none;align-items:center;justify-content:center;gap:8px;background:#10b981;">
-                <svg style="width:18px;height:18px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                <span id="directSaveText">Save MP4 File</span>
-              </a>
-              <button id="openVideoBtn" class="btn-primary-preview">
+            <div class="success-actions" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+              <button id="openVideoBtn" class="btn-secondary">
                 <svg style="width:18px;height:18px;fill:currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 <span>Play &amp; Watch Video</span>
               </button>

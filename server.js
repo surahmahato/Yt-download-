@@ -727,7 +727,7 @@ function extractWithYtDlp(url, quality = '720', type = 'video') {
     const qNum = parseInt(quality, 10) || 720;
     const formatArg = type === 'audio'
       ? 'bestaudio[ext=m4a]/bestaudio/best'
-      : `best[height<=${qNum}][ext=mp4]/18/best[ext=mp4]/best`;
+      : `best[height<=${qNum}][ext=mp4]/18/b/best[ext=mp4]/best/worst`;
 
     // Strategy 1: Rich JSON metadata extraction
     const jsonArgs = [
@@ -1228,6 +1228,9 @@ async function extractFacebook(url, quality = '720', type = 'video') {
 }
 
 async function extractYouTube(url, quality = '720', type = 'video') {
+  const normalizedUrl = normalizeVideoUrl(url) || url;
+  url = normalizedUrl;
+
   // Method 1: @vreden/youtube_scraper (Under 1 second, SaveTube VIP CDN)
   if (vredenScraper) {
     try {
@@ -1267,37 +1270,53 @@ async function extractYouTube(url, quality = '720', type = 'video') {
     }
   }
 
-  // Method 2: SaveTube API direct
+  // Method 2: SaveTube API direct with multi-quality fallback
   try {
-    const normalizedUrl = normalizeVideoUrl(url);
     const cdnRes = await fetchJson('https://media.savetube.vip/api/random-cdn', { timeout: 5000 });
     const cdn = cdnRes && cdnRes.cdn ? cdnRes.cdn : 'cdn403.savetube.vip';
-    const infoRes = await postJson(`https://${cdn}/v2/info`, { url: normalizedUrl }, {
+    const infoRes = await postJson(`https://${cdn}/v2/info`, { url }, {
       headers: { 'Referer': 'https://save-tube.com/', 'User-Agent': 'Mozilla/5.0' },
       timeout: 6000
     });
     if (infoRes && infoRes.data) {
       const info = decodeSavetubeData(infoRes.data);
-      const dlRes = await postJson(`https://${cdn}/download`, {
-        downloadType: type === 'audio' ? 'audio' : 'video',
-        quality: quality.toString(),
-        key: info.key
-      }, {
-        headers: { 'Referer': 'https://save-tube.com/', 'User-Agent': 'Mozilla/5.0' },
-        timeout: 8000
-      });
-      if (dlRes && dlRes.data && dlRes.data.downloadUrl) {
-        return {
-          downloadUrl: dlRes.data.downloadUrl,
-          title: info.title || 'YouTube Video',
-          thumbnail: info.thumbnail || '',
-          duration: info.duration || 180,
-          durationLabel: info.durationLabel || '03:00',
-          author: info.author || 'Creator',
-          platform: 'YouTube',
-          quality: `${quality}p`,
-          type: type
-        };
+      if (info && info.key) {
+        const qualitiesToTry = [quality.toString()];
+        if (type !== 'audio') {
+          ['720', '360', '480', '1080'].forEach(q => {
+            if (!qualitiesToTry.includes(q)) qualitiesToTry.push(q);
+          });
+        } else {
+          ['128', '320', 'mp3'].forEach(q => {
+            if (!qualitiesToTry.includes(q)) qualitiesToTry.push(q);
+          });
+        }
+
+        for (const q of qualitiesToTry) {
+          try {
+            const dlRes = await postJson(`https://${cdn}/download`, {
+              downloadType: type === 'audio' ? 'audio' : 'video',
+              quality: q,
+              key: info.key
+            }, {
+              headers: { 'Referer': 'https://save-tube.com/', 'User-Agent': 'Mozilla/5.0' },
+              timeout: 6000
+            });
+            if (dlRes && dlRes.data && dlRes.data.downloadUrl) {
+              return {
+                downloadUrl: dlRes.data.downloadUrl,
+                title: info.title || 'YouTube Video',
+                thumbnail: info.thumbnail || '',
+                duration: info.duration || 180,
+                durationLabel: info.durationLabel || '03:00',
+                author: info.author || 'Creator',
+                platform: 'YouTube',
+                quality: `${q}p`,
+                type: type
+              };
+            }
+          } catch (dlErr) {}
+        }
       }
     }
   } catch (se) {
@@ -1497,19 +1516,8 @@ async function extractUniversalVideo(rawUrl, quality = '720', type = 'video') {
     console.warn('[HTML Scraper warning]:', he.message);
   }
 
-  // Universal Fallback if no network scraper could connect
-  return {
-    downloadUrl: cleanUrl,
-    title: 'Social Media Video',
-    thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
-    duration: 60,
-    durationLabel: '01:00',
-    author: 'Creator',
-    platform: 'Web Video',
-    quality: `${quality}p`,
-    type: type,
-    isPhoto: false
-  };
+  // Universal Fallback: return null so caller knows no stream was found
+  return null;
 }
 
 async function fetchVideoInfo(rawUrl) {
@@ -1651,6 +1659,10 @@ async function requestDownloadLink(cdn, info, quality, type) {
   // Call the universal multi-tier extraction engine
   const targetUrl = info.originalUrl || info.normalizedUrl || `https://www.youtube.com/watch?v=${info.id || info.key}`;
   const extracted = await extractUniversalVideo(targetUrl, qualityStr, type);
+
+  if (!extracted || !extracted.downloadUrl || extracted.downloadUrl === targetUrl) {
+    throw new Error('Unable to extract playable direct stream for this media');
+  }
 
   const isExtractedPhoto = extracted.type === 'photo' || extracted.isPhoto;
   const ext = type === 'audio' ? 'mp3' : (isExtractedPhoto ? 'jpg' : 'mp4');
@@ -2005,34 +2017,14 @@ const server = http.createServer(async (req, res) => {
         fastCached: true
       }));
     } catch (err) {
-      console.warn('Download link fallback to direct/proxy stream:', err.message);
-      let filename = 'media_download.mp4';
-      try {
-        const u = new URL(videoUrl);
-        const lastPart = u.pathname.split('/').filter(Boolean).pop() || 'video';
-        const cleanName = lastPart.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 40) || 'media';
-        const ext = type === 'audio' ? 'mp3' : 'mp4';
-        filename = `${cleanName}_${quality}${type === 'audio' ? 'kbps' : 'p'}.${ext}`;
-      } catch (e) {}
-
-      const streamProxyUrl = `/api/proxy?url=${encodeURIComponent(videoUrl)}&filename=${encodeURIComponent(filename)}&type=${type}`;
-
-      res.writeHead(200, {
+      console.warn('Download link resolution error:', err.message);
+      res.writeHead(422, {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=600'
+        'Access-Control-Allow-Origin': '*'
       });
       res.end(JSON.stringify({
-        success: true,
-        downloadUrl: videoUrl,
-        filename,
-        streamProxyUrl,
-        title: 'Video Stream (100% Accurate)',
-        duration: 'HD',
-        quality: `${quality}p`,
-        type,
-        isPhoto: false,
-        downloadAnyways: true
+        success: false,
+        error: 'Unable to extract a downloadable video stream for this link. The video may be private, age-restricted, or protected. Please ensure the link is public or try another video or quality.'
       }));
     }
     return;
@@ -2084,9 +2076,9 @@ const server = http.createServer(async (req, res) => {
     const type = parsedUrl.query.type || 'video';
     const contentType = type === 'audio' ? 'audio/mpeg' : 'video/mp4';
 
-    if (!targetUrl) {
+    if (!targetUrl || targetUrl.includes('youtube.com/watch') || targetUrl.includes('youtube.com/shorts') || targetUrl.includes('youtu.be/')) {
       res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
-      res.end('Invalid or prohibited target URL');
+      res.end('Invalid or prohibited target media URL');
       return;
     }
 
@@ -2099,6 +2091,9 @@ const server = http.createServer(async (req, res) => {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
         'Accept': '*/*'
       };
+      if (req.headers.range) {
+        reqHeaders['Range'] = req.headers.range;
+      }
       if (isTiktok) {
         reqHeaders['Referer'] = 'https://www.tiktok.com/';
       } else if (targetUrl.includes('savetube')) {
@@ -2154,8 +2149,11 @@ const server = http.createServer(async (req, res) => {
       if (contentLength) {
         responseHeaders['Content-Length'] = contentLength;
       }
+      if (proxyRes.headers.get('content-range')) {
+        responseHeaders['Content-Range'] = proxyRes.headers.get('content-range');
+      }
 
-      res.writeHead(200, responseHeaders);
+      res.writeHead(proxyRes.status || 200, responseHeaders);
 
       const nodeStream = Readable.fromWeb(proxyRes.body);
       nodeStream.on('error', (e) => console.error('[Proxy Stream Error]', e.message));
@@ -2164,8 +2162,13 @@ const server = http.createServer(async (req, res) => {
     } catch (err) {
       console.error('Proxy stream error:', err.message);
       if (!res.headersSent) {
-        res.writeHead(302, { 'Location': targetUrl });
-        res.end();
+        if (targetUrl && (targetUrl.includes('googlevideo.com') || targetUrl.includes('savetube') || targetUrl.includes('tiktokcdn') || targetUrl.includes('fbcdn.net'))) {
+          res.writeHead(302, { 'Location': targetUrl });
+          res.end();
+        } else {
+          res.writeHead(502, { 'Content-Type': 'text/plain' });
+          res.end('Upstream media stream temporarily unavailable. Please try again.');
+        }
       }
       return;
     }
