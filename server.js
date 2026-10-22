@@ -1715,6 +1715,20 @@ const server = http.createServer(async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   let reqPath = parsedUrl.pathname;
 
+  // SEO: 301 Redirect /index.html to / to prevent duplicate content in Google Search Console
+  if (reqPath === '/index.html' && parsedUrl.pathname === '/index.html') {
+    res.writeHead(301, { 'Location': '/' + (parsedUrl.search || '') });
+    res.end();
+    return;
+  }
+
+  // SEO: 301 Redirect trailing slash (e.g. /news/ -> /news)
+  if (reqPath.length > 1 && reqPath.endsWith('/')) {
+    res.writeHead(301, { 'Location': reqPath.slice(0, -1) + (parsedUrl.search || '') });
+    res.end();
+    return;
+  }
+
   const cleanRoutes = {
     '/': '/index.html',
     '/news': '/news.html',
@@ -2212,7 +2226,7 @@ const server = http.createServer(async (req, res) => {
     };
 
     if (isHtml) {
-      headers['Cache-Control'] = 'public, max-age=1800, s-maxage=3600, stale-while-revalidate=600';
+      headers['Cache-Control'] = 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800';
       headers['X-Frame-Options'] = 'SAMEORIGIN';
       headers['Referrer-Policy'] = 'strict-origin-when-cross-origin';
     } else if (isXml || isTxt) {

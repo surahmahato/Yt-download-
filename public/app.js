@@ -680,11 +680,11 @@ document.addEventListener('DOMContentLoaded', () => {
           currentVideoData.resolvedFilename = filename;
         }
 
-        triggerBrowserDownload(finalDownloadUrl, filename);
         showSuccessCard(filename, finalDownloadUrl, effectiveType);
-        if (triggerBtn) triggerBtn.innerHTML = `<span>✓ Fast Download Started!</span>`;
+        triggerBrowserDownload(finalDownloadUrl, filename);
+        if (triggerBtn) triggerBtn.innerHTML = `<span>✓ Ready to Download!</span>`;
       } else {
-        const errMsg = (data && data.error) ? data.error : 'Could not extract direct media stream. Please verify the link is public.';
+        const errMsg = (data && data.error) ? data.error : 'Could not extract direct media stream. Please verify the link is public and accessible.';
         alert(errMsg);
         if (triggerBtn) triggerBtn.innerHTML = `<span>Download Failed</span>`;
       }
@@ -712,18 +712,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Trigger Native Phone Browser File Download directly into device Gallery & Downloads
   function triggerBrowserDownload(fileUrl, filename) {
-    const link = document.createElement('a');
-    link.href = fileUrl;
-    link.setAttribute('download', filename);
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
+    // 1. Try iframe method (standard for forcing attachment download on desktop & mobile browsers)
+    try {
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = fileUrl;
+      document.body.appendChild(iframe);
+      setTimeout(() => {
+        if (document.body.contains(iframe)) document.body.removeChild(iframe);
+      }, 30000);
+    } catch (e) {}
 
-    setTimeout(() => {
-      if (document.body.contains(link)) {
-        document.body.removeChild(link);
-      }
-    }, 1500);
+    // 2. Try anchor click
+    try {
+      const link = document.createElement('a');
+      link.href = fileUrl;
+      link.setAttribute('download', filename);
+      link.target = '_self';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+      }, 2000);
+    } catch (e) {}
+
+    // 3. For mobile browsers (Chrome / Safari) where programmatic clicks are suppressed:
+    // Navigating directly to the attachment stream forces the browser's native download manager to start
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    if (isMobile) {
+      setTimeout(() => {
+        try {
+          window.location.assign(fileUrl);
+        } catch (e) {}
+      }, 350);
+    }
   }
 
   // Display Success Card with direct file link
@@ -734,11 +760,24 @@ document.addEventListener('DOMContentLoaded', () => {
       directSaveFileBtn.setAttribute('download', filename);
       if (directSaveText) {
         const typeLabel = type === 'audio' ? 'MP3 Audio' : (type === 'photo' ? 'HD Photo' : 'MP4 Video');
-        directSaveText.textContent = `Save ${typeLabel} File`;
+        directSaveText.textContent = `⬇️ Download ${typeLabel} Now`;
       }
     }
+    const cardTitle = document.getElementById('successCardTitle');
+    if (cardTitle) cardTitle.textContent = 'Your File is Ready!';
+    const cardDesc = document.getElementById('successCardDesc');
+    if (cardDesc) cardDesc.textContent = 'Download starting automatically. Tap the green button below if your browser did not start it.';
+
     successCard.style.display = 'block';
     successCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  if (directSaveFileBtn) {
+    directSaveFileBtn.addEventListener('click', () => {
+      if (directSaveText) {
+        directSaveText.textContent = '✓ Downloading... Check Notifications';
+      }
+    });
   }
 
   // Play Video / Preview Modal (100% Real Video - Never test color bars)
