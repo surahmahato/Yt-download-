@@ -1715,6 +1715,14 @@ const server = http.createServer(async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   let reqPath = parsedUrl.pathname;
 
+  // Fast drop for automated malicious scanners searching for PHP/WordPress/env exploits
+  // Saves Render free tier CPU/memory by rejecting PHP probes without disk lookups
+  if (reqPath.endsWith('.php') || reqPath.includes('.php/') || reqPath.startsWith('/wp-') || reqPath.includes('phpmyadmin') || reqPath.includes('xmlrpc') || reqPath.startsWith('/.env') || reqPath.startsWith('/.git')) {
+    res.writeHead(404, { 'Content-Type': 'text/plain', 'X-Robots-Tag': 'noindex, nofollow' });
+    res.end('Not Found');
+    return;
+  }
+
   // SEO: 301 Redirect /index.html to / to prevent duplicate content in Google Search Console
   if (reqPath === '/index.html' && parsedUrl.pathname === '/index.html') {
     res.writeHead(301, { 'Location': '/' + (parsedUrl.search || '') });
