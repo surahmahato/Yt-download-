@@ -170,7 +170,7 @@ fun GalleryScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Videos and music you download from YouTube, TikTok, or Instagram will automatically appear here and in your phone gallery.",
+                        text = "Videos and music you download from YouTube, Shorts, or TikTok will automatically appear here and in your phone gallery.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center

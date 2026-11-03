@@ -1,11 +1,10 @@
-// Platform Detector & Video Downloader Engine
+// YT Download - Lightweight Video Downloader & Interactive 3D Website Model Engine
 document.addEventListener('DOMContentLoaded', () => {
   const urlInput = document.getElementById('videoUrlInput');
   const pasteBtn = document.getElementById('pasteBtn');
   const fetchBtn = document.getElementById('fetchBtn');
   const filterTabs = document.querySelectorAll('.filter-tab');
   const resultCard = document.getElementById('videoResultCard');
-  const resItemRows = document.querySelectorAll('.res-item-row');
   const downloadBtn = document.getElementById('downloadActionBtn');
   const progressBox = document.getElementById('progressBox');
   const progressBarFill = document.getElementById('progressBarFill');
@@ -18,7 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const shareVideoBtn = document.getElementById('shareVideoBtn');
   const downloadAgainBtn = document.getElementById('downloadAgainBtn');
 
-  // Turbo Fast Action Elements
   const quickHdDlBtn = document.getElementById('quickHdDlBtn');
   const quickMp3DlBtn = document.getElementById('quickMp3DlBtn');
   const pasteAndGoBtn = document.getElementById('pasteAndGoBtn');
@@ -32,7 +30,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const step2Line = document.getElementById('step2Line');
   const step3Dot = document.getElementById('step3Dot');
 
-  // Video Info Elements
   const videoThumb = document.getElementById('videoThumb');
   const videoDuration = document.getElementById('videoDuration');
   const videoTitle = document.getElementById('videoTitle');
@@ -40,7 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const videoPlatformBadge = document.getElementById('videoPlatformBadge');
   const videoViews = document.getElementById('videoViews');
 
-  // Video Modal Elements
   const videoPlayerModal = document.getElementById('videoPlayerModal');
   const modalBackdrop = document.getElementById('modalBackdrop');
   const closeModalBtn = document.getElementById('closeModalBtn');
@@ -58,7 +54,17 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedType = 'video';
   let currentVideoData = null;
 
-  // Single Column Resolution Row Selection
+  function isRemovedPlatformUrl(rawUrl) {
+    const lower = (rawUrl || '').toLowerCase();
+    return (
+      lower.includes('instagram.com') ||
+      lower.includes('instagr.am') ||
+      lower.includes('facebook.com') ||
+      lower.includes('fb.watch') ||
+      lower.includes('fb.gg')
+    );
+  }
+
   function initResolutionRowListeners() {
     const rows = document.querySelectorAll('.res-item-row');
     rows.forEach(row => {
@@ -70,8 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedFormat = row.getAttribute('data-quality') || '720';
         selectedType = row.getAttribute('data-type') || 'video';
 
-        const label = selectedType === 'audio' 
-          ? '⚡ Save MP3 Audio to Phone Gallery' 
+        const label = selectedType === 'audio'
+          ? '⚡ Save MP3 Audio to Phone Gallery'
           : `⚡ Save ${selectedFormat}p Video to Phone Gallery`;
         const btnText = document.getElementById('downloadBtnText');
         if (btnText) btnText.textContent = label;
@@ -89,7 +95,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   initResolutionRowListeners();
 
-  // Clipboard Paste Button
   if (pasteBtn) {
     pasteBtn.addEventListener('click', async () => {
       try {
@@ -105,7 +110,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Filter Tabs
   filterTabs.forEach(tab => {
     tab.addEventListener('click', () => {
       filterTabs.forEach(t => t.classList.remove('active'));
@@ -121,24 +125,19 @@ document.addEventListener('DOMContentLoaded', () => {
         urlInput.placeholder = 'Paste YouTube video, Shorts, or Music link...';
         break;
       case 'tiktok':
-        urlInput.placeholder = 'Paste TikTok video or sound link...';
-        break;
-      case 'instagram':
-        urlInput.placeholder = 'Paste Instagram Reels, Stories, or Post video link...';
+        urlInput.placeholder = 'Paste TikTok video or audio link (no watermark)...';
         break;
       default:
-        urlInput.placeholder = 'Paste YouTube, TikTok, or Instagram video link here...';
+        urlInput.placeholder = 'Paste YouTube, Shorts, TikTok, or direct MP4 video link...';
     }
   }
 
-  // Rotating Entertainment Tips & Creator Insights (No Boring Experience)
   const FUN_TIPS = [
-    'Saved videos go directly into your phone\'s <strong>Gallery > Downloads</strong> album!',
+    'Saved videos go directly into your phone\'s <strong>Gallery &gt; Downloads</strong> album!',
     'Multi-threaded CDN stream delivers up to <strong>18.5 MB/s</strong> direct throughput.',
     'Want to watch right away? Tap <strong>▶ Play Preview</strong> above to watch without waiting!',
     'Need only the song or audio? Tap <strong>Instant MP3</strong> for crystal-clear 320kbps audio.',
-    '100% full original length with synchronized sound & high-definition visuals.',
-    'Shorts & Reels are saved in original full resolution with zero watermarks.'
+    'YouTube Shorts &amp; TikTok clips are saved in original HD resolution with zero watermarks.'
   ];
   let tipIndex = 0;
   setInterval(() => {
@@ -148,21 +147,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, 3500);
 
-  // Background Pre-fetching on URL paste / input
   let prefetchTimer = null;
-  urlInput.addEventListener('input', () => {
-    const rawVal = urlInput.value.trim();
-    detectPlatformFromUrl(rawVal);
-    if (rawVal.startsWith('http') && (rawVal.includes('youtu') || rawVal.includes('tiktok') || rawVal.includes('instagram'))) {
-      clearTimeout(prefetchTimer);
-      prefetchTimer = setTimeout(() => {
-        // Silently warm CDN cache in background so download is instantaneous
-        fetch(`/api/resolve?url=${encodeURIComponent(rawVal)}&quality=720&type=video`).catch(() => {});
-      }, 400);
-    }
-  });
+  if (urlInput) {
+    urlInput.addEventListener('input', () => {
+      const rawVal = urlInput.value.trim();
+      detectPlatformFromUrl(rawVal);
+      if (rawVal.startsWith('http') && !isRemovedPlatformUrl(rawVal) && (rawVal.includes('youtu') || rawVal.includes('tiktok'))) {
+        clearTimeout(prefetchTimer);
+        prefetchTimer = setTimeout(() => {
+          fetch(`/api/resolve?url=${encodeURIComponent(rawVal)}&quality=720&type=video`).catch(() => {});
+        }, 400);
+      }
+    });
+  }
 
-  // 1-Click Instant Action Buttons
   if (quickHdDlBtn) {
     quickHdDlBtn.addEventListener('click', async () => {
       let url = urlInput.value.trim();
@@ -177,8 +175,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {}
       }
       if (!url) {
-        url = 'https://www.youtube.com/watch?v=jNQXAC9IVRw';
-        urlInput.value = url;
+        urlInput.focus();
+        return;
       }
       await fastOneClickDownload(url, '720', 'video', quickHdDlBtn);
     });
@@ -198,8 +196,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {}
       }
       if (!url) {
-        url = 'https://www.youtube.com/watch?v=jNQXAC9IVRw';
-        urlInput.value = url;
+        urlInput.focus();
+        return;
       }
       await fastOneClickDownload(url, '320', 'audio', quickMp3DlBtn);
     });
@@ -225,69 +223,52 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Interactive "While You Wait" Preview Play
   if (whileWaitPlayBtn) {
-    whileWaitPlayBtn.addEventListener('click', () => {
-      openVideoModal();
-    });
+    whileWaitPlayBtn.addEventListener('click', openVideoModal);
   }
 
-  // Sample Pills
-  document.querySelectorAll('.sample-pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-      const sampleUrl = pill.getAttribute('data-url');
-      urlInput.value = sampleUrl;
-      detectPlatformFromUrl(sampleUrl);
-      fetchVideoMetadata(sampleUrl);
-    });
-  });
-
-  // URL Change / Detection
-  urlInput.addEventListener('input', () => {
-    detectPlatformFromUrl(urlInput.value.trim());
-  });
-
   function detectPlatformFromUrl(url) {
-    const lower = url.toLowerCase();
+    const lower = (url || '').toLowerCase();
     if (lower.includes('youtube.com') || lower.includes('youtu.be')) {
       setActivePlatformTab('youtube');
     } else if (lower.includes('tiktok.com')) {
       setActivePlatformTab('tiktok');
-    } else if (lower.includes('instagram.com')) {
-      setActivePlatformTab('instagram');
+    } else {
+      setActivePlatformTab('all');
     }
   }
 
   function setActivePlatformTab(platform) {
     filterTabs.forEach(tab => {
-      if (tab.getAttribute('data-platform') === platform) {
-        tab.classList.add('active');
-      } else {
-        tab.classList.remove('active');
-      }
+      tab.classList.toggle('active', tab.getAttribute('data-platform') === platform);
     });
     currentPlatform = platform;
   }
 
-  // Fetch Button Click
-  fetchBtn.addEventListener('click', () => {
-    const url = urlInput.value.trim();
-    if (!url) {
-      alert('Please enter any video link to download.');
-      urlInput.focus();
-      return;
-    }
-    fetchVideoMetadata(url);
-  });
+  if (fetchBtn) {
+    fetchBtn.addEventListener('click', () => {
+      const url = urlInput.value.trim();
+      if (!url) {
+        alert('Please paste a YouTube, Shorts, TikTok, or direct video link.');
+        urlInput.focus();
+        return;
+      }
+      if (isRemovedPlatformUrl(url)) {
+        alert('Instagram and Facebook video downloading have been removed. Please paste a YouTube, Shorts, TikTok, or direct video link.');
+        return;
+      }
+      fetchVideoMetadata(url);
+    });
+  }
 
-  // Enter key in input
-  urlInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      fetchBtn.click();
-    }
-  });
+  if (urlInput) {
+    urlInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        fetchBtn.click();
+      }
+    });
+  }
 
-  // Extract YouTube ID (works for regular videos and Shorts)
   function extractYouTubeId(url) {
     const shortsMatch = url.match(/\/shorts\/([a-zA-Z0-9_-]{11})/i);
     if (shortsMatch && shortsMatch[1]) return { id: shortsMatch[1], isShort: true };
@@ -299,29 +280,28 @@ document.addEventListener('DOMContentLoaded', () => {
     return null;
   }
 
-  // Parse Metadata & Display with Real Backend Analyzer
   async function fetchVideoMetadata(url) {
+    if (isRemovedPlatformUrl(url)) {
+      alert('Instagram and Facebook video downloading have been removed. Please paste a YouTube, Shorts, TikTok, or direct video link.');
+      return;
+    }
+
     fetchBtn.disabled = true;
     fetchBtn.innerHTML = '<span>Analyzing link...</span>';
 
     let platformName = 'YouTube';
     let thumbUrl = 'https://images.unsplash.com/photo-1536240478700-b869070f9279?w=600&auto=format&fit=crop&q=80';
     let title = 'HD Playable Video';
-    let channel = 'Social Media Creator';
+    let channel = 'Creator';
     let duration = '01:23';
     let views = 'High Definition';
-    const ytInfo = extractYouTubeId(url);
+    let ytInfo = extractYouTubeId(url);
 
-    // Initial local guess based on platform
     const lower = url.toLowerCase();
     if (lower.includes('tiktok.com')) {
       platformName = 'TikTok';
       title = 'TikTok Video (No Watermark)';
       channel = '@tiktok_creator';
-    } else if (lower.includes('instagram.com')) {
-      platformName = 'Instagram';
-      title = 'Instagram Reel (Full HD)';
-      channel = '@insta_reels';
     } else if (ytInfo) {
       platformName = ytInfo.isShort ? 'YouTube Shorts' : 'YouTube';
       thumbUrl = `https://i.ytimg.com/vi/${ytInfo.id}/hqdefault.jpg`;
@@ -332,46 +312,29 @@ document.addEventListener('DOMContentLoaded', () => {
       channel = 'Online Video';
     }
 
-    // Call server analyzer endpoint for exact video title, thumbnail, duration
     try {
       const analyzeRes = await fetch(`/api/analyze?url=${encodeURIComponent(url)}`);
-      if (analyzeRes.ok) {
-        const analyzeData = await analyzeRes.json();
-        if (analyzeData.success) {
-          const v = analyzeData.video || analyzeData;
-          if (v.title) title = v.title;
-          if (v.thumbnail) thumbUrl = v.thumbnail;
-          if (v.durationLabel || v.duration) duration = v.durationLabel || v.duration;
-          if (v.platform) platformName = v.platform;
-          if (v.channel || v.author) channel = v.channel || v.author;
-          if (v.id) {
-            if (!ytInfo) {
-              ytInfo = { id: v.id, isShort: false };
-            } else {
-              ytInfo.id = v.id;
-            }
-          }
-          currentVideoData = {
-            url,
-            platform: platformName,
-            thumbUrl,
-            title,
-            channel,
-            duration,
-            views,
-            ytInfo,
-            type: v.type || 'video',
-            isPhoto: !!v.isPhoto,
-            photos: v.photos || []
-          };
-          renderResolutionOptions(v);
+      const analyzeData = await analyzeRes.json();
+      if (!analyzeRes.ok || !analyzeData.success) {
+        if (analyzeData && analyzeData.error) {
+          alert(analyzeData.error);
+          fetchBtn.disabled = false;
+          fetchBtn.innerHTML = '<span>⚡ Fast Download</span>';
+          return;
         }
+      } else {
+        const v = analyzeData.video || analyzeData;
+        if (v.title) title = v.title;
+        if (v.thumbnail) thumbUrl = v.thumbnail;
+        if (v.durationLabel || v.duration) duration = v.durationLabel || v.duration;
+        if (v.platform) platformName = v.platform;
+        if (v.channel || v.author) channel = v.channel || v.author;
+        if (v.id && ytInfo) ytInfo.id = v.id;
       }
     } catch (err) {
       console.warn('Backend analyze fallback:', err.message);
     }
 
-    // Also fallback to YouTube oEmbed if title is still default
     if (ytInfo && title.includes('YouTube Video')) {
       try {
         const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytInfo.id}&format=json`;
@@ -385,22 +348,19 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (e) {}
     }
 
-    if (!currentVideoData) {
-      currentVideoData = {
-        url,
-        platform: platformName,
-        thumbUrl,
-        title,
-        channel,
-        duration,
-        views,
-        ytInfo,
-        type: 'video',
-        isPhoto: false,
-        photos: []
-      };
-      renderResolutionOptions(currentVideoData);
-    }
+    currentVideoData = {
+      url,
+      platform: platformName,
+      thumbUrl,
+      title,
+      channel,
+      duration,
+      views,
+      ytInfo,
+      type: 'video'
+    };
+
+    renderResolutionOptions();
 
     videoThumb.src = thumbUrl;
     videoDuration.textContent = duration;
@@ -409,10 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
     videoPlatformBadge.textContent = platformName;
     videoViews.textContent = views;
 
-    // Platform pill styling
-    const badgeClass = platformName.toLowerCase().includes('tiktok') 
-      ? 'tiktok' 
-      : (platformName.toLowerCase().includes('instagram') ? 'instagram' : 'youtube');
+    const badgeClass = platformName.toLowerCase().includes('tiktok') ? 'tiktok' : 'youtube';
     videoPlatformBadge.className = `platform-pill ${badgeClass}`;
 
     resultCard.style.display = 'block';
@@ -420,188 +377,127 @@ document.addEventListener('DOMContentLoaded', () => {
     progressBox.style.display = 'none';
 
     fetchBtn.disabled = false;
-    fetchBtn.innerHTML = `
-      <svg style="width:18px;height:18px;fill:currentColor" viewBox="0 0 24 24">
-        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/>
-      </svg>
-      <span>Download</span>
-    `;
+    fetchBtn.innerHTML = '<span>⚡ Fast Download</span>';
 
     resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  // Dynamically render resolution rows according to media type (Video vs High-Res Photo)
-  function renderResolutionOptions(v) {
+  function renderResolutionOptions() {
     const col = document.getElementById('resolutionSingleColumn');
     if (!col) return;
-    const isPhoto = v && (v.isPhoto || v.type === 'photo');
 
-    if (isPhoto) {
-      selectedFormat = '1080';
-      selectedType = 'photo';
-      let html = `
-        <div class="res-item-row selected" data-quality="1080" data-type="photo">
-          <div class="res-left">
-            <span class="res-pill pill-1080" style="background:linear-gradient(135deg, #0284c7, #0369a1);color:#fff;">HD PHOTO</span>
-            <div class="res-info">
-              <div class="res-headline">Original Resolution (Full HD) <span class="format-badge-chip" style="background:#e0f2fe;color:#0369a1;">JPG Image</span></div>
-              <div class="res-subline">Pristine Uncompressed Quality • Direct Save to Gallery</div>
-            </div>
+    selectedFormat = '1080';
+    selectedType = 'video';
+    col.innerHTML = `
+      <div class="res-item-row selected" data-quality="1080" data-type="video">
+        <div class="res-left">
+          <span class="res-pill pill-1080">1080p</span>
+          <div class="res-info">
+            <div class="res-headline">1080p (Full HD) <span class="format-badge-chip">MP4 Video</span></div>
+            <div class="res-subline">Maximum Quality • 1920x1080 • Direct Playable</div>
           </div>
-          <button type="button" class="btn-res-action table-dl-btn" data-quality="1080" data-type="photo">
-            <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-            <span>Download HD Photo</span>
-          </button>
         </div>
-      `;
+        <button type="button" class="btn-res-action table-dl-btn" data-quality="1080" data-type="video">
+          <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          <span>Download 1080p</span>
+        </button>
+      </div>
 
-      if (v.photos && v.photos.length > 1) {
-        v.photos.forEach((p, idx) => {
-          html += `
-            <div class="res-item-row" data-quality="1080" data-type="photo" data-photourl="${p.downloadUrl}" data-photoname="${p.filename || ('photo_' + (idx + 1) + '.jpg')}">
-              <div class="res-left">
-                <span class="res-pill" style="background:#38bdf8;color:#0f172a;font-weight:700;">#${idx + 1}</span>
-                <div class="res-info">
-                  <div class="res-headline">Photo ${idx + 1} of ${v.photos.length} <span class="format-badge-chip">Carousel Item</span></div>
-                  <div class="res-subline">Original Resolution • High Quality JPG</div>
-                </div>
-              </div>
-              <button type="button" class="btn-res-action table-dl-btn" data-quality="1080" data-type="photo" data-photourl="${p.downloadUrl}" data-photoname="${p.filename || ('photo_' + (idx + 1) + '.jpg')}">
-                <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                <span>Download Photo ${idx + 1}</span>
-              </button>
-            </div>
-          `;
-        });
-      }
-
-      col.innerHTML = html;
-      const btnText = document.getElementById('downloadBtnText');
-      if (btnText) btnText.textContent = '⚡ Save HD Photo to Phone Gallery';
-    } else {
-      selectedFormat = '1080';
-      selectedType = 'video';
-      col.innerHTML = `
-        <div class="res-item-row selected" data-quality="1080" data-type="video">
-          <div class="res-left">
-            <span class="res-pill pill-1080">1080p</span>
-            <div class="res-info">
-              <div class="res-headline">1080p (Full HD) <span class="format-badge-chip">MP4 Video</span></div>
-              <div class="res-subline">Maximum Quality • 1920x1080 • Direct Playable</div>
-            </div>
+      <div class="res-item-row" data-quality="720" data-type="video">
+        <div class="res-left">
+          <span class="res-pill pill-720">720p</span>
+          <div class="res-info">
+            <div class="res-headline">720p (HD Standard) <span class="format-badge-chip">MP4 Video</span></div>
+            <div class="res-subline">Standard HD • Recommended for Mobile</div>
           </div>
-          <button type="button" class="btn-res-action table-dl-btn" data-quality="1080" data-type="video">
-            <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-            <span>Download 1080p</span>
-          </button>
         </div>
+        <button type="button" class="btn-res-action table-dl-btn" data-quality="720" data-type="video">
+          <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          <span>Download 720p</span>
+        </button>
+      </div>
 
-        <div class="res-item-row" data-quality="720" data-type="video">
-          <div class="res-left">
-            <span class="res-pill pill-720">720p</span>
-            <div class="res-info">
-              <div class="res-headline">720p (HD Standard) <span class="format-badge-chip">MP4 Video</span></div>
-              <div class="res-subline">Standard HD • Recommended for Mobile</div>
-            </div>
+      <div class="res-item-row" data-quality="480" data-type="video">
+        <div class="res-left">
+          <span class="res-pill" style="background:#e0e7ff;color:#3730a3;font-weight:700;">480p</span>
+          <div class="res-info">
+            <div class="res-headline">480p (Standard) <span class="format-badge-chip">MP4 Video</span></div>
+            <div class="res-subline">Fast Download • High Compatibility</div>
           </div>
-          <button type="button" class="btn-res-action table-dl-btn" data-quality="720" data-type="video">
-            <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-            <span>Download 720p</span>
-          </button>
         </div>
+        <button type="button" class="btn-res-action table-dl-btn" data-quality="480" data-type="video">
+          <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          <span>Download 480p</span>
+        </button>
+      </div>
 
-        <div class="res-item-row" data-quality="480" data-type="video">
-          <div class="res-left">
-            <span class="res-pill" style="background:#e0e7ff;color:#3730a3;font-weight:700;">480p</span>
-            <div class="res-info">
-              <div class="res-headline">480p (Standard) <span class="format-badge-chip">MP4 Video</span></div>
-              <div class="res-subline">Fast Download • High Compatibility</div>
-            </div>
+      <div class="res-item-row" data-quality="360" data-type="video">
+        <div class="res-left">
+          <span class="res-pill pill-360">360p</span>
+          <div class="res-info">
+            <div class="res-headline">360p (Fast / Data Saver) <span class="format-badge-chip">MP4 Video</span></div>
+            <div class="res-subline">Fastest Download • Compact File Size</div>
           </div>
-          <button type="button" class="btn-res-action table-dl-btn" data-quality="480" data-type="video">
-            <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-            <span>Download 480p</span>
-          </button>
         </div>
+        <button type="button" class="btn-res-action table-dl-btn" data-quality="360" data-type="video">
+          <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          <span>Download 360p</span>
+        </button>
+      </div>
 
-        <div class="res-item-row" data-quality="360" data-type="video">
-          <div class="res-left">
-            <span class="res-pill pill-360">360p</span>
-            <div class="res-info">
-              <div class="res-headline">360p (Fast / Data Saver) <span class="format-badge-chip">MP4 Video</span></div>
-              <div class="res-subline">Fastest Download • Compact File Size</div>
-            </div>
+      <div class="res-item-row audio-row" data-quality="320" data-type="audio">
+        <div class="res-left">
+          <span class="res-pill pill-mp3">MP3</span>
+          <div class="res-info">
+            <div class="res-headline">MP3 Audio (High Quality 320kbps) <span class="format-badge-chip audio">Audio HQ</span></div>
+            <div class="res-subline">Studio Sound • Music / Phone Ringtone</div>
           </div>
-          <button type="button" class="btn-res-action table-dl-btn" data-quality="360" data-type="video">
-            <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-            <span>Download 360p</span>
-          </button>
         </div>
+        <button type="button" class="btn-res-action audio-btn table-dl-btn" data-quality="320" data-type="audio">
+          <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+          <span>Download MP3</span>
+        </button>
+      </div>
+    `;
 
-        <div class="res-item-row audio-row" data-quality="320" data-type="audio">
-          <div class="res-left">
-            <span class="res-pill pill-mp3">MP3</span>
-            <div class="res-info">
-              <div class="res-headline">MP3 Audio (High Quality 320kbps) <span class="format-badge-chip audio">Audio HQ</span></div>
-              <div class="res-subline">Studio Sound • Music / Phone Ringtone</div>
-            </div>
-          </div>
-          <button type="button" class="btn-res-action audio-btn table-dl-btn" data-quality="320" data-type="audio">
-            <svg style="width:16px;height:16px;fill:currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-            <span>Download MP3</span>
-          </button>
-        </div>
-      `;
-      const btnText = document.getElementById('downloadBtnText');
-      if (btnText) btnText.textContent = '⚡ Save 1080p Video to Phone Gallery';
-    }
-
+    const btnText = document.getElementById('downloadBtnText');
+    if (btnText) btnText.textContent = '⚡ Save 1080p Video to Phone Gallery';
     initResolutionRowListeners();
   }
 
-  // Quality Table direct download buttons setup
-  initResolutionRowListeners();
-
-  // Main Download Button
   if (downloadBtn) {
     downloadBtn.addEventListener('click', () => {
-      const isPhoto = currentVideoData && (currentVideoData.isPhoto || currentVideoData.type === 'photo');
-      const qualityNum = selectedFormat.replace(/[^0-9]/g, '') || (isPhoto ? '1080' : '1080');
-      const dlType = isPhoto ? 'photo' : (selectedType || 'video');
+      const qualityNum = selectedFormat.replace(/[^0-9]/g, '') || '1080';
+      const dlType = selectedType || 'video';
       downloadSpecificQuality(qualityNum, dlType, downloadBtn);
     });
   }
 
-  // Helper to reset milestones
   function resetTurboMilestones() {
-    if (step1Dot) { step1Dot.className = 'milestone-step active'; }
-    if (step1Line) { step1Line.className = 'milestone-line'; }
-    if (step2Dot) { step2Dot.className = 'milestone-step'; }
-    if (step2Line) { step2Line.className = 'milestone-line'; }
-    if (step3Dot) { step3Dot.className = 'milestone-step'; }
+    if (step1Dot) step1Dot.className = 'milestone-step active';
+    if (step1Line) step1Line.className = 'milestone-line';
+    if (step2Dot) step2Dot.className = 'milestone-step';
+    if (step2Line) step2Line.className = 'milestone-line';
+    if (step3Dot) step3Dot.className = 'milestone-step';
   }
 
-  // 1-Click Fast Direct Download (No Boring Experience, Instant Gallery Save)
   async function fastOneClickDownload(url, quality = '1080', type = 'video', triggerBtn = null) {
     if (!url) return;
+    if (isRemovedPlatformUrl(url)) {
+      alert('Instagram and Facebook video downloading have been removed. Please paste a YouTube, Shorts, TikTok, or direct video link.');
+      return;
+    }
 
-    // Ensure result metadata is populated or initiated
     if (!currentVideoData || currentVideoData.url !== url) {
       fetchVideoMetadata(url);
     }
 
-    const customPhotoUrl = triggerBtn ? triggerBtn.getAttribute('data-photourl') : null;
-    const customPhotoName = triggerBtn ? triggerBtn.getAttribute('data-photoname') : null;
-    const isPhoto = (currentVideoData && (currentVideoData.isPhoto || currentVideoData.type === 'photo')) || type === 'photo' || !!customPhotoUrl;
-    const effectiveType = isPhoto ? 'photo' : type;
-
     const originalBtnHtml = triggerBtn ? triggerBtn.innerHTML : '';
     if (triggerBtn) {
       triggerBtn.disabled = true;
-      triggerBtn.innerHTML = `<span>⚡ Fast DL Starting...</span>`;
+      triggerBtn.innerHTML = '<span>⚡ Fast DL Starting...</span>';
     }
 
-    // Show Turbo HUD immediately
     progressBox.style.display = 'block';
     successCard.style.display = 'none';
     resetTurboMilestones();
@@ -611,9 +507,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (progressSpeed) progressSpeed.textContent = '16.4 MB/s';
     if (progressEta) progressEta.textContent = '⏱ ETA: ~1.2s';
     if (turboStatusStep) turboStatusStep.textContent = '⚡ Connecting to High-Speed CDN Edge Node...';
-    if (progressBytes) progressBytes.textContent = isPhoto ? 'Preparing Full HD Photo...' : `Multiplexing ${quality}${type === 'audio' ? 'kbps' : 'p'} stream...`;
+    if (progressBytes) progressBytes.textContent = `Multiplexing ${quality}${type === 'audio' ? 'kbps' : 'p'} stream...`;
 
-    // Step 1 done, move to Step 2
     setTimeout(() => {
       if (step1Dot) step1Dot.classList.add('completed');
       if (step1Line) step1Line.classList.add('completed');
@@ -622,44 +517,14 @@ document.addEventListener('DOMContentLoaded', () => {
       progressPercent.textContent = '65%';
       if (progressSpeed) progressSpeed.textContent = '19.8 MB/s';
       if (progressEta) progressEta.textContent = '⏱ ETA: ~0.5s';
-      if (turboStatusStep) turboStatusStep.textContent = isPhoto ? '📸 Downloading Original Resolution Image...' : '🚀 Extracting High-Definition Stream with Audio...';
+      if (turboStatusStep) turboStatusStep.textContent = '🚀 Extracting High-Definition Stream with Audio...';
     }, 400);
 
-    // Fast-path: If user clicked a direct carousel photo item
-    if (customPhotoUrl) {
-      setTimeout(() => {
-        if (step2Dot) step2Dot.classList.add('completed');
-        if (step2Line) step2Line.classList.add('completed');
-        if (step3Dot) step3Dot.classList.add('active', 'completed');
-        progressBarFill.style.width = '100%';
-        progressPercent.textContent = '100%';
-        if (progressSpeed) progressSpeed.textContent = '22.4 MB/s';
-        if (progressEta) progressEta.textContent = '✓ Ready!';
-        if (turboStatusStep) turboStatusStep.textContent = '💾 Saving directly to Device Gallery & Downloads!';
-
-        const filename = customPhotoName || 'instagram_photo_HD.jpg';
-        const finalDownloadUrl = `/api/proxy?url=${encodeURIComponent(customPhotoUrl)}&filename=${encodeURIComponent(filename)}&type=photo`;
-        triggerBrowserDownload(finalDownloadUrl, filename);
-        showSuccessCard(filename, finalDownloadUrl, 'photo');
-        if (triggerBtn) triggerBtn.innerHTML = `<span>✓ Fast Download Started!</span>`;
-      }, 500);
-
-      setTimeout(() => {
-        if (triggerBtn) {
-          triggerBtn.disabled = false;
-          triggerBtn.innerHTML = originalBtnHtml;
-        }
-        progressBox.style.display = 'none';
-      }, 2500);
-      return;
-    }
-
     try {
-      const resolveUrl = `/api/resolve?url=${encodeURIComponent(url)}&quality=${quality}&type=${effectiveType}`;
+      const resolveUrl = `/api/resolve?url=${encodeURIComponent(url)}&quality=${quality}&type=${type}`;
       const response = await fetch(resolveUrl);
       const data = await response.json();
 
-      // Step 2 done, move to Step 3
       if (step2Dot) step2Dot.classList.add('completed');
       if (step2Line) step2Line.classList.add('completed');
       if (step3Dot) step3Dot.classList.add('active', 'completed');
@@ -670,28 +535,27 @@ document.addEventListener('DOMContentLoaded', () => {
       if (turboStatusStep) turboStatusStep.textContent = '💾 Saving directly to Device Gallery & Downloads!';
 
       if (data && data.success && data.downloadUrl) {
-        const isResultPhoto = data.isPhoto || data.type === 'photo' || effectiveType === 'photo';
-        const ext = effectiveType === 'audio' ? 'mp3' : (isResultPhoto ? 'jpg' : 'mp4');
+        const ext = type === 'audio' ? 'mp3' : 'mp4';
         const filename = data.filename || `media_${quality}p.${ext}`;
-        const finalDownloadUrl = data.streamProxyUrl || `/api/proxy?url=${encodeURIComponent(data.downloadUrl)}&filename=${encodeURIComponent(filename)}&type=${effectiveType}`;
+        const finalDownloadUrl = data.streamProxyUrl || `/api/proxy?url=${encodeURIComponent(data.downloadUrl)}&filename=${encodeURIComponent(filename)}&type=${type}`;
 
         if (currentVideoData) {
           currentVideoData.resolvedUrl = data.downloadUrl;
           currentVideoData.resolvedFilename = filename;
         }
 
-        showSuccessCard(filename, finalDownloadUrl, effectiveType);
+        showSuccessCard(filename, finalDownloadUrl, type);
         triggerBrowserDownload(finalDownloadUrl, filename);
-        if (triggerBtn) triggerBtn.innerHTML = `<span>✓ Ready to Download!</span>`;
+        if (triggerBtn) triggerBtn.innerHTML = '<span>✓ Ready to Download!</span>';
       } else {
-        const errMsg = (data && data.error) ? data.error : 'Could not extract direct media stream. Please verify the link is public and accessible.';
+        const errMsg = (data && data.error) ? data.error : 'Could not extract direct media stream. Please verify the link is public.';
         alert(errMsg);
-        if (triggerBtn) triggerBtn.innerHTML = `<span>Download Failed</span>`;
+        if (triggerBtn) triggerBtn.innerHTML = '<span>Download Failed</span>';
       }
     } catch (err) {
       console.warn('Fast DL error:', err);
-      alert('Unable to extract direct stream for this link right now. Please check if the link is public and accessible.');
-      if (triggerBtn) triggerBtn.innerHTML = `<span>Download Failed</span>`;
+      alert('Unable to extract direct stream for this link right now.');
+      if (triggerBtn) triggerBtn.innerHTML = '<span>Download Failed</span>';
     } finally {
       setTimeout(() => {
         if (triggerBtn) {
@@ -703,16 +567,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Core Download Handler: Specific quality clicked
   async function downloadSpecificQuality(quality, type, triggerBtn) {
     const url = (currentVideoData && currentVideoData.url) || urlInput.value.trim();
     if (!url) return;
     await fastOneClickDownload(url, quality, type, triggerBtn);
   }
 
-  // Trigger Native Phone Browser File Download directly into device Gallery & Downloads
   function triggerBrowserDownload(fileUrl, filename) {
-    // 1. Try iframe method (standard for forcing attachment download on desktop & mobile browsers)
     try {
       const iframe = document.createElement('iframe');
       iframe.style.display = 'none';
@@ -723,7 +584,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 30000);
     } catch (e) {}
 
-    // 2. Try anchor click
     try {
       const link = document.createElement('a');
       link.href = fileUrl;
@@ -732,42 +592,29 @@ document.addEventListener('DOMContentLoaded', () => {
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-
       setTimeout(() => {
-        if (document.body.contains(link)) {
-          document.body.removeChild(link);
-        }
+        if (document.body.contains(link)) document.body.removeChild(link);
       }, 2000);
     } catch (e) {}
 
-    // 3. For mobile browsers (Chrome / Safari) where programmatic clicks are suppressed:
-    // Navigating directly to the attachment stream forces the browser's native download manager to start
     const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
     if (isMobile) {
       setTimeout(() => {
-        try {
-          window.location.assign(fileUrl);
-        } catch (e) {}
+        try { window.location.assign(fileUrl); } catch (e) {}
       }, 350);
     }
   }
 
-  // Display Success Card with direct file link
   function showSuccessCard(filename, downloadUrl, type) {
     if (directSaveFileBtn && downloadUrl) {
       directSaveFileBtn.style.display = 'flex';
       directSaveFileBtn.href = downloadUrl;
       directSaveFileBtn.setAttribute('download', filename);
       if (directSaveText) {
-        const typeLabel = type === 'audio' ? 'MP3 Audio' : (type === 'photo' ? 'HD Photo' : 'MP4 Video');
+        const typeLabel = type === 'audio' ? 'MP3 Audio' : 'MP4 Video';
         directSaveText.textContent = `⬇️ Download ${typeLabel} Now`;
       }
     }
-    const cardTitle = document.getElementById('successCardTitle');
-    if (cardTitle) cardTitle.textContent = 'Your File is Ready!';
-    const cardDesc = document.getElementById('successCardDesc');
-    if (cardDesc) cardDesc.textContent = 'Download starting automatically. Tap the green button below if your browser did not start it.';
-
     successCard.style.display = 'block';
     successCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
@@ -780,18 +627,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Play Video / Preview Modal (100% Real Video - Never test color bars)
   function openVideoModal() {
     modalVideoTitle.textContent = currentVideoData ? currentVideoData.title : 'Video Playback';
 
     if (currentVideoData && currentVideoData.ytInfo && currentVideoData.ytInfo.id) {
-      // Embed official YouTube stream - 100% exact video, full duration & sound
       modalYoutubeIframe.src = `https://www.youtube.com/embed/${currentVideoData.ytInfo.id}?autoplay=1&playsinline=1`;
       modalYoutubeIframe.style.display = 'block';
       modalVideoElement.style.display = 'none';
       modalDurationBadge.textContent = `⏱ Duration: ${currentVideoData.duration || 'Full'}`;
     } else if (currentVideoData && currentVideoData.resolvedUrl) {
-      // Direct MP4 stream playback
       modalVideoElement.src = currentVideoData.resolvedUrl;
       modalVideoElement.style.display = 'block';
       modalYoutubeIframe.style.display = 'none';
@@ -807,9 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function closeVideoModal() {
-    if (modalYoutubeIframe) {
-      modalYoutubeIframe.src = '';
-    }
+    if (modalYoutubeIframe) modalYoutubeIframe.src = '';
     if (modalVideoElement) {
       modalVideoElement.pause();
       modalVideoElement.currentTime = 0;
@@ -818,26 +660,11 @@ document.addEventListener('DOMContentLoaded', () => {
     videoPlayerModal.style.display = 'none';
   }
 
-  if (openVideoBtn) {
-    openVideoBtn.addEventListener('click', openVideoModal);
-  }
-
-  if (headerWatchBtn) {
-    headerWatchBtn.addEventListener('click', openVideoModal);
-  }
-
-  if (closeModalBtn) {
-    closeModalBtn.addEventListener('click', closeVideoModal);
-  }
-
-  if (modalCloseActionBtn) {
-    modalCloseActionBtn.addEventListener('click', closeVideoModal);
-  }
-
-  if (modalBackdrop) {
-    modalBackdrop.addEventListener('click', closeVideoModal);
-  }
-
+  if (openVideoBtn) openVideoBtn.addEventListener('click', openVideoModal);
+  if (headerWatchBtn) headerWatchBtn.addEventListener('click', openVideoModal);
+  if (closeModalBtn) closeModalBtn.addEventListener('click', closeVideoModal);
+  if (modalCloseActionBtn) modalCloseActionBtn.addEventListener('click', closeVideoModal);
+  if (modalBackdrop) modalBackdrop.addEventListener('click', closeVideoModal);
   if (modalSaveBtn) {
     modalSaveBtn.addEventListener('click', () => {
       closeVideoModal();
@@ -845,7 +672,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Share Button
   if (shareVideoBtn) {
     shareVideoBtn.addEventListener('click', async () => {
       if (navigator.share && currentVideoData) {
@@ -855,17 +681,14 @@ document.addEventListener('DOMContentLoaded', () => {
             text: `Download video with YT Download: ${currentVideoData.title}`,
             url: window.location.href
           });
-        } catch (err) {
-          console.log('Share canceled');
-        }
+        } catch (err) {}
       } else {
         navigator.clipboard.writeText(window.location.href);
-        alert('Link copied to clipboard! Share it with your friends.');
+        alert('Link copied to clipboard!');
       }
     });
   }
 
-  // Download Another
   if (downloadAgainBtn) {
     downloadAgainBtn.addEventListener('click', () => {
       urlInput.value = '';
@@ -876,228 +699,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Legal & Info Modals (Terms, Privacy Policy, Contact Us)
-  const infoModal = document.getElementById('infoModal');
-  const infoModalBackdrop = document.getElementById('infoModalBackdrop');
-  const infoModalTitle = document.getElementById('infoModalTitle');
-  const infoModalBody = document.getElementById('infoModalBody');
-  const closeInfoModalBtn = document.getElementById('closeInfoModalBtn');
-  const infoModalCloseActionBtn = document.getElementById('infoModalCloseActionBtn');
-  const termsConditionsLink = document.getElementById('termsConditionsLink');
-  const privacyPolicyLink = document.getElementById('privacyPolicyLink');
-  const contactUsLink = document.getElementById('contactUsLink');
-
-  const legalContent = {
-    terms: {
-      title: 'Terms & Conditions',
-      html: `
-        <div style="display:flex;flex-direction:column;gap:18px;">
-          <p style="color:var(--text-muted);font-size:0.85rem;">Last Updated: September 2026</p>
-          
-          <div style="background:#f8fafc;border-left:4px solid var(--primary-color);padding:14px 16px;border-radius:4px;">
-            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">1. Platform Disclaimer</h4>
-            <p style="color:#334155;line-height:1.6;">"This website is an independent utility and is not affiliated with, sponsored by, or endorsed by YouTube, TikTok, Instagram, Facebook, or any of their parent companies."</p>
-          </div>
-
-          <div style="background:#f8fafc;border-left:4px solid var(--accent-cyan);padding:14px 16px;border-radius:4px;">
-            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">2. User Responsibility & Fair Use</h4>
-            <p style="color:#334155;line-height:1.6;">"By using this tool, you represent and warrant that you own the rights to the content or have secured explicit permission from the original owner before downloading. You agree not to download copyrighted material without proper authorization."</p>
-          </div>
-
-          <div style="background:#f8fafc;border-left:4px solid var(--tiktok-pink);padding:14px 16px;border-radius:4px;">
-            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">3. Limitation of Liability</h4>
-            <p style="color:#334155;line-height:1.6;">"This service is provided 'as is' without warranties of any kind. We accept no liability or responsibility for how downloaded files are stored, shared, or utilized by the end user."</p>
-          </div>
-
-          <div>
-            <h4 style="font-size:1rem;margin-bottom:6px;color:var(--text-main);">4. Acceptable Use</h4>
-            <p style="color:var(--text-muted);line-height:1.6;">You agree to use this platform only for lawful personal purposes and in strict compliance with applicable intellectual property and copyright regulations.</p>
-          </div>
-
-          <div style="margin-top:8px;padding-top:14px;border-top:1px solid var(--border-color);font-size:0.85rem;color:var(--text-muted);">
-            Questions about these terms? Reach out to us at <a href="mailto:xinghsuraj733@gmail.com" style="color:var(--primary-color);font-weight:600;">xinghsuraj733@gmail.com</a>.
-          </div>
-        </div>
-      `
-    },
-    privacy: {
-      title: 'Privacy Policy',
-      html: `
-        <div style="display:flex;flex-direction:column;gap:18px;">
-          <p style="color:var(--text-muted);font-size:0.85rem;">Last Updated: September 2026</p>
-
-          <div>
-            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">1. Overview & Commitment</h4>
-            <p style="color:#334155;line-height:1.6;">Your privacy is paramount to us. YT Download operates as a client-first media utility designed to minimize data collection and preserve user anonymity.</p>
-          </div>
-
-          <div style="background:#f8fafc;border-left:4px solid var(--accent-green);padding:14px 16px;border-radius:4px;">
-            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">2. Information We Do NOT Collect</h4>
-            <ul style="padding-left:20px;color:#334155;line-height:1.7;">
-              <li>We do <strong>not</strong> require account registration, usernames, or passwords.</li>
-              <li>We do <strong>not</strong> store or archive downloaded video files on our servers. All video and audio streams are processed directly in transit to your device.</li>
-              <li>We do <strong>not</strong> track, sell, or monetize your search history or personal information.</li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">3. Logs & Technical Metrics</h4>
-            <p style="color:#334155;line-height:1.6;">Temporary diagnostic headers (e.g. rate-limiting, error reporting, and load balancing) may be processed in server volatile memory to maintain service health, prevent abuse, and deliver fast response times. These temporary logs are automatically flushed.</p>
-          </div>
-
-          <div>
-            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">4. Cookies & Local Storage</h4>
-            <p style="color:#334155;line-height:1.6;">We do not use tracking or advertising cookies. Any local state stored in your browser (e.g., UI preferences) remains exclusively on your own device.</p>
-          </div>
-
-          <div>
-            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">5. Third-Party Links & Services</h4>
-            <p style="color:#334155;line-height:1.6;">Our service processes publicly available video URLs from third-party hosting platforms (such as YouTube, TikTok, and Instagram). These third parties maintain independent privacy policies that govern their respective services.</p>
-          </div>
-
-          <div style="margin-top:8px;padding-top:14px;border-top:1px solid var(--border-color);font-size:0.85rem;color:var(--text-muted);">
-            For privacy inquiries or data requests, contact our privacy contact at <a href="mailto:xinghsuraj733@gmail.com" style="color:var(--primary-color);font-weight:600;">xinghsuraj733@gmail.com</a>.
-          </div>
-        </div>
-      `
-    },
-    contact: {
-      title: 'Contact Us',
-      html: `
-        <div style="display:flex;flex-direction:column;gap:18px;">
-          <p style="color:#334155;line-height:1.6;">Have feedback, bug reports, feature requests, or copyright inquiries? We are here to help!</p>
-
-          <div style="background:#f8fafc;border:1px solid var(--border-color);border-radius:10px;padding:18px;">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-              <div style="width:40px;height:40px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;color:var(--primary-color);">
-                <svg style="width:20px;height:20px;fill:currentColor;" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
-              </div>
-              <div>
-                <div style="font-size:0.85rem;color:var(--text-muted);font-weight:600;">Official Support Email</div>
-                <a href="mailto:xinghsuraj733@gmail.com" style="font-size:1.1rem;font-weight:700;color:var(--primary-color);text-decoration:none;">xinghsuraj733@gmail.com</a>
-              </div>
-            </div>
-            <p style="font-size:0.88rem;color:var(--text-muted);margin:0;">Feel free to email us directly for swift response regarding service performance, platform compatibility, or legal correspondence.</p>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-            <div style="background:#ffffff;border:1px solid var(--border-color);padding:14px;border-radius:8px;">
-              <h5 style="margin-bottom:4px;color:var(--text-main);font-size:0.95rem;">⚡ Response Time</h5>
-              <p style="font-size:0.85rem;color:var(--text-muted);margin:0;">Inquiries typically receive a reply within 24–48 hours.</p>
-            </div>
-            <div style="background:#ffffff;border:1px solid var(--border-color);padding:14px;border-radius:8px;">
-              <h5 style="margin-bottom:4px;color:var(--text-main);font-size:0.95rem;">🛡️ DMCA & Copyright</h5>
-              <p style="font-size:0.85rem;color:var(--text-muted);margin:0;">Include relevant details in your email to ensure immediate handling.</p>
-            </div>
-          </div>
-        </div>
-      `
-    },
-    dmca: {
-      title: 'DMCA & Copyright Compliance Policy',
-      html: `
-        <div style="display:flex;flex-direction:column;gap:18px;">
-          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px;">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
-              <span style="font-size:1.4rem;">🛡️</span>
-              <strong style="color:#166534;font-size:1.05rem;">Safe, Legitimate & Non-Hosting Technical Utility</strong>
-            </div>
-            <p style="color:#166534;margin:0;font-size:0.9rem;line-height:1.6;">
-              YT Download operates strictly as an automated, user-directed technical utility. We do <strong>not</strong> host, store, stream, or index any copyrighted audio or video files on our servers. All media requests are executed in real time directly from public platforms by the requesting end-user for personal, non-commercial, and fair-use archiving purposes.
-            </p>
-          </div>
-
-          <div>
-            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">1. Compliance with the Digital Millennium Copyright Act (17 U.S.C. § 512)</h4>
-            <p style="color:#334155;line-height:1.6;">
-              YT Download respects the intellectual property rights of creators and content owners worldwide. It is our strict policy to respond promptly to clear, formal notices of alleged copyright infringement in accordance with the Digital Millennium Copyright Act (DMCA).
-            </p>
-          </div>
-
-          <div style="background:#f8fafc;border-left:4px solid #2563eb;padding:14px 16px;border-radius:4px;">
-            <h4 style="font-size:1.05rem;margin-bottom:6px;color:var(--text-main);">2. Notice and Takedown Procedure</h4>
-            <p style="color:#334155;line-height:1.6;">
-              If you are a copyright holder or an authorized representative thereof and believe that any link or content accessed through this service infringes upon your copyright, please send a written takedown notice to our designated copyright agent containing:
-            </p>
-            <ul style="padding-left:20px;color:#334155;line-height:1.7;font-size:0.9rem;">
-              <li>Identification of the copyrighted work claimed to have been infringed.</li>
-              <li>Identification of the specific material or URL(s) to be disabled.</li>
-              <li>Your contact information (name, address, telephone number, and email address).</li>
-              <li>A statement that you have a good-faith belief that use of the material is not authorized by the copyright owner, its agent, or the law.</li>
-              <li>A statement made under penalty of perjury that the information in the notification is accurate and that you are authorized to act on behalf of the copyright owner.</li>
-            </ul>
-          </div>
-
-          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px;">
-            <h4 style="font-size:1rem;margin-bottom:4px;color:#991b1b;">📬 Designated Copyright Agent</h4>
-            <p style="font-size:0.9rem;color:#7f1d1d;margin:0 0 8px 0;">All formal copyright and DMCA correspondence will be processed within 24 to 48 hours:</p>
-            <div style="font-weight:700;color:#dc2626;">Email: <a href="mailto:xinghsuraj733@gmail.com" style="color:#dc2626;text-decoration:underline;">xinghsuraj733@gmail.com</a></div>
-          </div>
-
-          <div>
-            <h4 style="font-size:1rem;margin-bottom:6px;color:var(--text-main);">3. Repeat Infringer Policy</h4>
-            <p style="color:var(--text-muted);line-height:1.6;font-size:0.9rem;">
-              In accordance with Section 512(i)(1)(A) of the DMCA, YT Download maintains a policy that reserves the right to terminate access or block URLs from repeat infringers who unlawfully utilize this service.
-            </p>
-          </div>
-        </div>
-      `
-    }
-  };
-
-  function openInfoModal(type) {
-    const item = legalContent[type];
-    if (!item) return;
-    infoModalTitle.textContent = item.title;
-    infoModalBody.innerHTML = item.html;
-    infoModal.style.display = 'flex';
-  }
-
-  function closeInfoModal() {
-    infoModal.style.display = 'none';
-  }
-
-  const dmcaPolicyLink = document.getElementById('dmcaPolicyLink');
-  if (dmcaPolicyLink) {
-    dmcaPolicyLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      openInfoModal('dmca');
-    });
-  }
-
-  if (termsConditionsLink) {
-    termsConditionsLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      openInfoModal('terms');
-    });
-  }
-
-  if (privacyPolicyLink) {
-    privacyPolicyLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      openInfoModal('privacy');
-    });
-  }
-
-  if (contactUsLink) {
-    contactUsLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      openInfoModal('contact');
-    });
-  }
-
-  if (closeInfoModalBtn) {
-    closeInfoModalBtn.addEventListener('click', closeInfoModal);
-  }
-
-  if (infoModalCloseActionBtn) {
-    infoModalCloseActionBtn.addEventListener('click', closeInfoModal);
-  }
-
-  if (infoModalBackdrop) {
-    infoModalBackdrop.addEventListener('click', closeInfoModal);
-  }
-
   // APK Download Modal Controls
   const apkDownloadModal = document.getElementById('apkDownloadModal');
   const apkModalBackdrop = document.getElementById('apkModalBackdrop');
@@ -1105,39 +706,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const headerDownloadApkBtn = document.getElementById('headerDownloadApkBtn');
   const footerDownloadApkBtn = document.getElementById('footerDownloadApkBtn');
   const directDownloadApkLink = document.getElementById('directDownloadApkLink');
+  const directDownloadApkLinkTop = document.getElementById('directDownloadApkLinkTop');
 
   function openApkModal() {
-    if (apkDownloadModal) {
-      apkDownloadModal.style.display = 'flex';
-    }
+    if (apkDownloadModal) apkDownloadModal.style.display = 'flex';
   }
-
   function closeApkModal() {
-    if (apkDownloadModal) {
-      apkDownloadModal.style.display = 'none';
-    }
+    if (apkDownloadModal) apkDownloadModal.style.display = 'none';
   }
 
-  // APK Direct Download Function
   function triggerApkDownload(apkUrl = '/download-apk') {
-    // Direct top-window location change ensures Android native package download starts cleanly
     window.location.href = apkUrl;
-
-    // Toast notification
-    let toast = document.getElementById('apkToastNotice');
-    if (!toast) {
-      toast = document.createElement('div');
-      toast.id = 'apkToastNotice';
-      toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0f172a;color:#ffffff;padding:12px 24px;border-radius:12px;font-size:0.9rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.3);z-index:99999;transition:opacity 0.2s;border:1px solid rgba(255,255,255,0.15);';
-      document.body.appendChild(toast);
-    }
-    toast.textContent = '⬇️ Downloading YT_Download.apk (18 MB)... Once downloaded, open it from your phone notification or Downloads folder to install!';
-    toast.style.display = 'block';
-    toast.style.opacity = '1';
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      setTimeout(() => { toast.style.display = 'none'; }, 300);
-    }, 5500);
   }
 
   if (headerDownloadApkBtn) {
@@ -1146,54 +725,249 @@ document.addEventListener('DOMContentLoaded', () => {
       openApkModal();
     });
   }
-
-  const topBannerDownloadApkBtn = document.getElementById('topBannerDownloadApkBtn');
-  if (topBannerDownloadApkBtn) {
-    topBannerDownloadApkBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      openApkModal();
-    });
-  }
-
   if (footerDownloadApkBtn) {
     footerDownloadApkBtn.addEventListener('click', (e) => {
       e.preventDefault();
       openApkModal();
     });
   }
-
-  const directDownloadApkLinkTop = document.getElementById('directDownloadApkLinkTop');
   if (directDownloadApkLinkTop) {
     directDownloadApkLinkTop.addEventListener('click', (e) => {
       e.preventDefault();
       triggerApkDownload('/download-apk');
     });
   }
-
   if (directDownloadApkLink) {
     directDownloadApkLink.addEventListener('click', (e) => {
       e.preventDefault();
       triggerApkDownload('/download-apk');
     });
   }
+  if (closeApkModalBtn) closeApkModalBtn.addEventListener('click', closeApkModal);
+  if (apkModalBackdrop) apkModalBackdrop.addEventListener('click', closeApkModal);
 
-  if (closeApkModalBtn) {
-    closeApkModalBtn.addEventListener('click', closeApkModal);
+  // =========================================================================
+  // INTERACTIVE 3D WEBSITE ARCHITECTURE MODEL ENGINE
+  // =========================================================================
+  const viewport3d = document.getElementById('scene3dViewport');
+  const pivot3d = document.getElementById('model3dPivot');
+  const readout3d = document.getElementById('scene3dReadout');
+  const explodeBtn = document.getElementById('toggleExplode3dBtn');
+  const autoOrbitBtn = document.getElementById('toggleAutoOrbitBtn');
+  const simulateFlowBtn = document.getElementById('simulate3dFlowBtn');
+  const canvas3d = document.getElementById('conduit3dCanvas');
+
+  if (viewport3d && pivot3d) {
+    let rotX = -24;
+    let rotY = 32;
+    let zoom = 1.0;
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let autoOrbit = true;
+    let isExploded = false;
+
+    function update3dTransform(smooth = false) {
+      if (smooth) {
+        pivot3d.classList.add('smooth-cam');
+      } else {
+        pivot3d.classList.remove('smooth-cam');
+      }
+      pivot3d.style.transform = `rotateX(${rotX.toFixed(1)}deg) rotateY(${rotY.toFixed(1)}deg) scale3d(${zoom.toFixed(2)}, ${zoom.toFixed(2)}, ${zoom.toFixed(2)})`;
+      if (readout3d) {
+        const normY = (((Math.round(rotY) % 360) + 540) % 360) - 180;
+        readout3d.textContent = `Pitch: ${Math.round(rotX)}° | Yaw: ${normY}° | Zoom: ${zoom.toFixed(2)}x`;
+      }
+    }
+
+    viewport3d.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('.mini-fmt-chip')) return;
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      autoOrbit = false;
+      if (autoOrbitBtn) autoOrbitBtn.classList.remove('active');
+      viewport3d.setPointerCapture(e.pointerId);
+    });
+
+    viewport3d.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      startX = e.clientX;
+      startY = e.clientY;
+      rotY += dx * 0.45;
+      rotX = Math.max(-80, Math.min(25, rotX - dy * 0.35));
+      update3dTransform(false);
+    });
+
+    const endDrag = () => { isDragging = false; };
+    viewport3d.addEventListener('pointerup', endDrag);
+    viewport3d.addEventListener('pointercancel', endDrag);
+
+    viewport3d.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      zoom = Math.max(0.68, Math.min(1.38, zoom - e.deltaY * 0.0008));
+      update3dTransform(false);
+    }, { passive: false });
+
+    // Camera Presets
+    document.querySelectorAll('.cam-preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.cam-preset-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        rotX = parseFloat(btn.getAttribute('data-rx') || '-24');
+        rotY = parseFloat(btn.getAttribute('data-ry') || '32');
+        zoom = 1.0;
+        autoOrbit = false;
+        if (autoOrbitBtn) autoOrbitBtn.classList.remove('active');
+        update3dTransform(true);
+      });
+    });
+
+    // Explode Layers Toggle
+    if (explodeBtn) {
+      explodeBtn.addEventListener('click', () => {
+        isExploded = !isExploded;
+        pivot3d.classList.toggle('exploded', isExploded);
+        explodeBtn.classList.toggle('active', isExploded);
+        explodeBtn.textContent = isExploded ? 'Collapse Layers' : 'Explode Layers';
+      });
+    }
+
+    // Auto-Orbit Toggle
+    if (autoOrbitBtn) {
+      autoOrbitBtn.addEventListener('click', () => {
+        autoOrbit = !autoOrbit;
+        autoOrbitBtn.classList.toggle('active', autoOrbit);
+      });
+    }
+
+    // Clickable miniature format chips inside the 3D Browser layer
+    document.querySelectorAll('.mini-fmt-chip').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.mini-fmt-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const fmt = chip.getAttribute('data-fmt') || '1080p MP4';
+        const saved1 = document.getElementById('mini3dSavedFile1');
+        if (saved1) {
+          saved1.textContent = fmt.includes('MP3') ? '🎵 YT_Audio_320kbps.mp3' : `🎬 YT_Video_${fmt.split(' ')[0]}.mp4`;
+        }
+      });
+    });
+
+    // Layer Selection & Inspector Sync
+    function select3dLayer(layerKey) {
+      document.querySelectorAll('.layer-3d-deck').forEach(deck => {
+        deck.classList.toggle('selected-layer', deck.getAttribute('data-layer') === layerKey);
+      });
+      document.querySelectorAll('.inspector-card').forEach(card => {
+        card.classList.toggle('active', card.getAttribute('data-inspect') === layerKey);
+      });
+    }
+
+    document.querySelectorAll('.layer-3d-deck').forEach(deck => {
+      deck.addEventListener('click', () => {
+        select3dLayer(deck.getAttribute('data-layer'));
+      });
+    });
+
+    document.querySelectorAll('.inspector-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const key = card.getAttribute('data-inspect');
+        select3dLayer(key);
+        if (!isExploded) {
+          isExploded = true;
+          pivot3d.classList.add('exploded');
+          if (explodeBtn) {
+            explodeBtn.classList.add('active');
+            explodeBtn.textContent = 'Collapse Layers';
+          }
+        }
+      });
+    });
+
+    // Simulate 3D Download Flow Pulse
+    if (simulateFlowBtn) {
+      simulateFlowBtn.addEventListener('click', () => {
+        const hudFill = document.getElementById('mini3dHudFill');
+        const hudPct = document.getElementById('mini3dHudPct');
+        const hudStatus = document.getElementById('mini3dHudStatus');
+        const phoneBadge = document.getElementById('mini3dPhoneBadge');
+
+        if (!isExploded) {
+          isExploded = true;
+          pivot3d.classList.add('exploded');
+          if (explodeBtn) {
+            explodeBtn.classList.add('active');
+            explodeBtn.textContent = 'Collapse Layers';
+          }
+        }
+
+        pivot3d.classList.add('pulse-active');
+        select3dLayer('browser');
+        if (hudFill) hudFill.style.width = '20%';
+        if (hudPct) hudPct.textContent = '20%';
+        if (hudStatus) hudStatus.textContent = '1. Parsing URL Manifest...';
+        if (phoneBadge) phoneBadge.textContent = '⏳ Receiving...';
+
+        setTimeout(() => {
+          select3dLayer('engine');
+          if (hudFill) hudFill.style.width = '68%';
+          if (hudPct) hudPct.textContent = '68%';
+          if (hudStatus) hudStatus.textContent = '2. Piping Node.js CDN Stream...';
+        }, 650);
+
+        setTimeout(() => {
+          select3dLayer('phone');
+          if (hudFill) hudFill.style.width = '100%';
+          if (hudPct) hudPct.textContent = '100%';
+          if (hudStatus) hudStatus.textContent = '✓ Saved to Phone Gallery!';
+          if (phoneBadge) phoneBadge.textContent = '✓ Saved Now';
+          pivot3d.classList.remove('pulse-active');
+        }, 1450);
+      });
+    }
+
+    // Lightweight Canvas 3D Starfield & Data Stream Particles
+    const ctx = canvas3d ? canvas3d.getContext('2d') : null;
+    const particles = Array.from({ length: 34 }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      speed: 0.002 + Math.random() * 0.004,
+      r: 1.2 + Math.random() * 1.8,
+      hue: Math.random() > 0.5 ? '#38bdf8' : '#ef4444'
+    }));
+
+    function resize3dCanvas() {
+      if (!canvas3d || !viewport3d) return;
+      canvas3d.width = viewport3d.clientWidth;
+      canvas3d.height = viewport3d.clientHeight;
+    }
+    resize3dCanvas();
+    window.addEventListener('resize', resize3dCanvas);
+
+    function animate3dLoop() {
+      if (autoOrbit && !isDragging) {
+        rotY += 0.22;
+        update3dTransform(false);
+      }
+
+      if (ctx && canvas3d.width > 0) {
+        ctx.clearRect(0, 0, canvas3d.width, canvas3d.height);
+        for (const p of particles) {
+          p.y += p.speed;
+          if (p.y > 1) p.y = 0;
+          ctx.beginPath();
+          ctx.fillStyle = p.hue;
+          ctx.globalAlpha = 0.55;
+          ctx.arc(p.x * canvas3d.width, p.y * canvas3d.height, p.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      requestAnimationFrame(animate3dLoop);
+    }
+    requestAnimationFrame(animate3dLoop);
   }
-
-  if (apkModalBackdrop) {
-    apkModalBackdrop.addEventListener('click', closeApkModal);
-  }
-
-  // Support URL hash navigation (#terms, #privacy, #contact, #apk-download)
-  function checkHashNavigation() {
-    const hash = window.location.hash.replace('#', '').toLowerCase();
-    if (hash === 'terms') openInfoModal('terms');
-    else if (hash === 'privacy') openInfoModal('privacy');
-    else if (hash === 'contact') openInfoModal('contact');
-    else if (hash === 'apk-download' || hash === 'download-apk' || hash === 'apk') openApkModal();
-  }
-
-  window.addEventListener('hashchange', checkHashNavigation);
-  checkHashNavigation();
 });

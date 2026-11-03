@@ -32,10 +32,10 @@
         <!-- SEO & App Metadata -->
         <meta-data
             android:name="keywords"
-            android:value="yt video download, TikTok video download, instagram video download, video downloader, reels downloader, phone gallery saver" />
+            android:value="yt video download, TikTok video download, video downloader, mp3 converter, phone gallery saver" />
         <meta-data
             android:name="description"
-            android:value="Fast and secure media downloader supporting YT video download, TikTok video download, and Instagram video download directly into phone integrated gallery." />
+            android:value="Fast and lightweight media downloader supporting YouTube, Shorts, and TikTok video download directly into phone integrated gallery." />
     </application>
 
 </manifest>

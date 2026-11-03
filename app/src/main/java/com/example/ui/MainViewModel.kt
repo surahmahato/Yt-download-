@@ -11,6 +11,7 @@ import com.example.data.network.DownloadState
 import com.example.data.network.VideoDownloadManager
 import com.example.data.network.VideoFormatOption
 import com.example.data.repository.VideoRepository
+import com.example.data.security.CryptoManager
 import com.example.data.storage.GallerySaver
 import com.example.ui.components.VideoPlayingState
 import kotlinx.coroutines.Dispatchers
@@ -95,7 +96,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun analyzeCurrentUrl() {
         val input = _urlInput.value.trim()
         if (input.isEmpty()) {
-            _errorMessage.value = "Please enter or paste any video URL to download"
+            _errorMessage.value = "Please enter or paste a YouTube, Shorts, or TikTok video URL"
+            return
+        }
+        val validation = CryptoManager.validateAndSanitizeUrl(input)
+        if (!validation.isValid) {
+            _errorMessage.value = validation.errorReason ?: "Unsupported or invalid URL."
+            _analyzedMetadata.value = null
             return
         }
 
@@ -119,7 +126,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun fastOneClickDownload(formatType: String) { // "hd" or "mp3"
         val input = _urlInput.value.trim()
         if (input.isEmpty()) {
-            _errorMessage.value = "Please paste or enter any video link first"
+            _errorMessage.value = "Please paste a YouTube, Shorts, or TikTok video link first"
+            return
+        }
+        val validation = CryptoManager.validateAndSanitizeUrl(input)
+        if (!validation.isValid) {
+            _errorMessage.value = validation.errorReason ?: "Unsupported or invalid URL."
+            _analyzedMetadata.value = null
             return
         }
         viewModelScope.launch {

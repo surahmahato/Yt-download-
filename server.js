@@ -3,10 +3,9 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
-const vm = require('vm');
 const { createDecipheriv } = require('crypto');
 const { Readable } = require('stream');
-const { execFile, execSync } = require('child_process');
+const { execFile } = require('child_process');
 
 let vredenScraper = null;
 try {
@@ -15,18 +14,10 @@ try {
   console.warn('[@vreden/youtube_scraper load warning]:', e.message);
 }
 
-let cakkatrokDownloader = null;
-try {
-  cakkatrokDownloader = require('cakkatrok-instagram-downloader');
-} catch (e) {
-  console.warn('[cakkatrok load warning]:', e.message);
-}
-
 const YT_DLP_BIN = fs.existsSync(path.join(__dirname, 'bin', 'yt-dlp'))
   ? path.join(__dirname, 'bin', 'yt-dlp')
   : (fs.existsSync('/usr/local/bin/yt-dlp') ? '/usr/local/bin/yt-dlp' : 'yt-dlp');
 
-// Ensure local yt-dlp binary has executable permissions
 try {
   if (fs.existsSync(YT_DLP_BIN)) {
     fs.chmodSync(YT_DLP_BIN, 0o755);
@@ -37,7 +28,6 @@ try {
 
 const NODE_BIN = process.execPath || '/usr/local/bin/node';
 
-// Graceful error handling so server never crashes unexpectedly
 process.on('uncaughtException', (err) => {
   console.error('[Process Error] Uncaught Exception:', err.message);
 });
@@ -47,7 +37,6 @@ process.on('unhandledRejection', (reason) => {
 
 const PORT = process.env.DEFAULT_APP_PORT || process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const NEWS_CACHE_FILE = path.join(__dirname, 'news-cache.json');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -67,7 +56,6 @@ const MIME_TYPES = {
   '.apk': 'application/vnd.android.package-archive'
 };
 
-// Built-in HTTP fetch helper with timeout (replaces external axios)
 // -------------------------------------------------------------
 // DEFENSIVE SECURITY ENGINE (RATE LIMITING, SSRF, SANITIZATION)
 // -------------------------------------------------------------
@@ -93,7 +81,6 @@ function checkRateLimit(clientIp, maxRequests = 60, windowMs = 60000) {
   return record.count <= maxRequests;
 }
 
-// Garbage-collect expired rate limit records periodically
 setInterval(() => {
   const now = Date.now();
   for (const [ip, record] of ipRateLimits.entries()) {
@@ -103,7 +90,6 @@ setInterval(() => {
   }
 }, 300000);
 
-// Strict SSRF & safe URL validation
 function isSafePublicUrl(inputUrl) {
   try {
     const parsed = new URL(inputUrl);
@@ -117,19 +103,17 @@ function isSafePublicUrl(inputUrl) {
     if (!hostname || hostname === 'localhost' || hostname.endsWith('.local') || hostname.endsWith('.internal')) {
       return false;
     }
-    // Block IPv4 private/loopback/cloud metadata ranges
     const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
     if (ipv4Match) {
       const a = Number(ipv4Match[1]);
       const b = Number(ipv4Match[2]);
-      if (a === 127 || a === 0) return false; // Loopback
-      if (a === 10) return false; // 10.0.0.0/8
-      if (a === 172 && b >= 16 && b <= 31) return false; // 172.16.0.0/12
-      if (a === 192 && b === 168) return false; // 192.168.0.0/16
-      if (a === 169 && b === 254) return false; // 169.254.0.0/16 Link-local/metadata
-      if (a >= 224) return false; // Multicast/reserved
+      if (a === 127 || a === 0) return false;
+      if (a === 10) return false;
+      if (a === 172 && b >= 16 && b <= 31) return false;
+      if (a === 192 && b === 168) return false;
+      if (a === 169 && b === 254) return false;
+      if (a >= 224) return false;
     }
-    // Block IPv6 formats
     if (hostname.includes(':') || hostname.startsWith('[') || hostname === '::1') {
       return false;
     }
@@ -139,10 +123,39 @@ function isSafePublicUrl(inputUrl) {
   }
 }
 
+// Block removed Instagram & Facebook platforms cleanly
+function isUnsupportedPlatformUrl(inputUrl) {
+  if (!inputUrl || typeof inputUrl !== 'string') return false;
+  try {
+    const parsed = new URL(inputUrl);
+    const h = parsed.hostname.toLowerCase();
+    return (
+      h === 'instagram.com' ||
+      h.endsWith('.instagram.com') ||
+      h === 'instagr.am' ||
+      h.endsWith('.cdninstagram.com') ||
+      h === 'facebook.com' ||
+      h.endsWith('.facebook.com') ||
+      h === 'fb.watch' ||
+      h === 'fb.gg' ||
+      h.endsWith('.fbcdn.net')
+    );
+  } catch {
+    const lower = inputUrl.toLowerCase();
+    return (
+      lower.includes('instagram.com') ||
+      lower.includes('instagr.am') ||
+      lower.includes('facebook.com') ||
+      lower.includes('fb.watch') ||
+      lower.includes('fb.gg')
+    );
+  }
+}
+
 function sanitizeAndValidateUrl(rawUrl) {
   if (!rawUrl || typeof rawUrl !== 'string') return null;
   let trimmed = rawUrl.trim();
-  if (trimmed.length > 2048) return null; // Prevent buffer/ReDoS attacks
+  if (trimmed.length > 2048) return null;
   if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
     if (trimmed.includes('://')) {
       trimmed = 'https://' + trimmed.split('://').slice(1).join('://');
@@ -211,448 +224,10 @@ async function postJson(targetUrl, bodyData, options = {}) {
 }
 
 // -------------------------------------------------------------
-// GOOGLE NEWS SERVICE - DAILY AUTO-UPDATE
-// -------------------------------------------------------------
-const GOOGLE_NEWS_CATEGORIES = [
-  { id: 'all', name: 'Top Headlines', url: 'https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en' },
-  { id: 'technology', name: 'Technology & AI', url: 'https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=en-US&gl=US&ceid=US:en' },
-  { id: 'entertainment', name: 'Entertainment', url: 'https://news.google.com/rss/headlines/section/topic/ENTERTAINMENT?hl=en-US&gl=US&ceid=US:en' },
-  { id: 'world', name: 'World News', url: 'https://news.google.com/rss/headlines/section/topic/WORLD?hl=en-US&gl=US&ceid=US:en' },
-  { id: 'business', name: 'Business', url: 'https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-US&gl=US&ceid=US:en' }
-];
-
-let newsState = {
-  lastUpdated: null,
-  isUpdating: false,
-  articles: [],
-  categories: GOOGLE_NEWS_CATEGORIES.map(c => ({ id: c.id, name: c.name }))
-};
-
-// Helper: Clean HTML entities
-function cleanHtml(text) {
-  if (!text) return '';
-  return text
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-// Helper: Calculate relative time
-function formatRelativeTime(date) {
-  const diffMs = Math.max(0, Date.now() - date.getTime());
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
-// Curated high-resolution related news images by category & topic
-const NEWS_IMAGE_POOLS = {
-  technology: [
-    'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1612287233261-26c99c855a73?w=600&auto=format&fit=crop&q=80'
-  ],
-  business: [
-    'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=600&auto=format&fit=crop&q=80'
-  ],
-  entertainment: [
-    'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?w=600&auto=format&fit=crop&q=80'
-  ],
-  world: [
-    'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1509099836639-18ba1795216d?w=600&auto=format&fit=crop&q=80'
-  ],
-  general: [
-    'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=600&auto=format&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1588681664899-f142ff2dc9b1?w=600&auto=format&fit=crop&q=80'
-  ]
-};
-
-// Keyword-based and deterministic related image matcher
-function getRelatedNewsImage(title, categoryId) {
-  const t = (title || '').toLowerCase();
-
-  if (/\b(iphone|apple|ios|macbook|ipad)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=600&auto=format&fit=crop&q=80';
-  }
-  if (/\b(galaxy|samsung|pixel|android)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=600&auto=format&fit=crop&q=80';
-  }
-  if (/\b(nintendo|switch|playstation|ps5|xbox|gaming|gamer|games?)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1612287233261-26c99c855a73?w=600&auto=format&fit=crop&q=80';
-  }
-  if (/\b(ai|artificial intelligence|chatgpt|openai|gemini|robot|deep learning|machine learning)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&auto=format&fit=crop&q=80';
-  }
-  if (/\b(nvidia|chip|chips|processor|intel|amd|laptop|pc|gpu)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&auto=format&fit=crop&q=80';
-  }
-  if (/\b(war|attack|military|conflict|army|navy|missile|tank|troops|ceasefire|ships?|strait|bomb|drone)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=600&auto=format&fit=crop&q=80';
-  }
-  if (/\b(queen|king|royal|prince|princess|monarchy|diana|monarch)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=600&auto=format&fit=crop&q=80';
-  }
-  if (/\b(trump|biden|election|senate|congress|republican|democrat|gop|president|law|court|judge|vote)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=600&auto=format&fit=crop&q=80';
-  }
-  if (/\b(dengue|measles|virus|hospital|health|doctor|vaccine|disease|medical|nicu|cdc|fda)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?w=600&auto=format&fit=crop&q=80';
-  }
-  if (/\b(stock|stocks|market|markets|wall street|fed|inflation|crypto|bitcoin|economy|banking|finance)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&auto=format&fit=crop&q=80';
-  }
-  if (/\b(movie|movies|film|films|hollywood|cinema|oscar|trailer|actor|actress|netflix|series|hbo)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80';
-  }
-  if (/\b(music|song|songs|album|concert|band|singer|grammy|billboard|pop|rock|rap)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80';
-  }
-  if (/\b(football|soccer|nfl|nba|olympic|olympics|cricket|tennis|sport|sports|fifa|uefa)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=600&auto=format&fit=crop&q=80';
-  }
-  if (/\b(space|nasa|moon|mars|telescope|planet|spacex|astronaut|rocket)\b/i.test(t)) {
-    return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=600&auto=format&fit=crop&q=80';
-  }
-
-  // Consistent hash-based pool selection
-  const pool = NEWS_IMAGE_POOLS[categoryId] || NEWS_IMAGE_POOLS.general;
-  let hash = 0;
-  for (let i = 0; i < (title || '').length; i++) {
-    hash = ((hash << 5) - hash) + title.charCodeAt(i);
-    hash |= 0;
-  }
-  const idx = Math.abs(hash) % pool.length;
-  return pool[idx];
-}
-
-// Intelligent duplicate detection across news syndications and feeds
-function areHeadlinesDuplicates(titleA, titleB) {
-  if (!titleA || !titleB) return false;
-
-  const cleanA = titleA.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const cleanB = titleB.toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (cleanA === cleanB) return true;
-  if (cleanA.length > 25 && cleanB.length > 25) {
-    if (cleanA.includes(cleanB) || cleanB.includes(cleanA)) return true;
-  }
-
-  const stopWords = new Set([
-    'this', 'that', 'with', 'from', 'have', 'were', 'what', 'when', 'where', 'which', 'about',
-    'after', 'will', 'more', 'than', 'their', 'there', 'been', 'over', 'into', 'just', 'also',
-    'amid', 'news', 'live', 'says', 'said', 'report', 'reports', 'update', 'updates', 'video',
-    'watch', 'exclusive', 'breaking', 'look', 'first', 'here', 'could', 'would', 'should'
-  ]);
-
-  const getTokens = (str) => str.toLowerCase().replace(/[^a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter(w => w.length > 3 && !stopWords.has(w));
-
-  const tokensA = getTokens(titleA);
-  const tokensB = getTokens(titleB);
-
-  if (tokensA.length >= 3 && tokensB.length >= 3) {
-    const setB = new Set(tokensB);
-    const common = tokensA.filter(w => setB.has(w));
-    const minLen = Math.min(tokensA.length, tokensB.length);
-    const similarity = common.length / minLen;
-
-    // Over 50% keyword overlap means it is coverage of the exact same news story
-    if (similarity >= 0.5) return true;
-
-    // First 3 significant words match in sequence
-    if (tokensA.slice(0, 3).join(' ') === tokensB.slice(0, 3).join(' ')) return true;
-  }
-
-  return false;
-}
-
-// Clean HTML and extract full story description and structured highlights from Google News RSS
-function parseGoogleNewsDescription(rawDesc, fallbackTitle, source) {
-  if (!rawDesc) {
-    return {
-      snippet: fallbackTitle || 'Read the full coverage on Google News.',
-      fullDescription: `${fallbackTitle}.\n\nDetailed reporting provided by ${source || 'verified news publishers'}. Tap the link below to access the full news article and ongoing developments.`,
-      relatedSources: []
-    };
-  }
-
-  // Unescape HTML entities
-  let decoded = rawDesc
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/&nbsp;/g, ' ');
-
-  // Extract all individual article points / headlines packaged by Google News
-  const listItems = [];
-  const liMatches = decoded.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi);
-  for (const m of liMatches) {
-    const liContent = m[1];
-    const liText = liContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    if (liText && liText.length > 6) {
-      listItems.push(liText);
-    }
-  }
-
-  // Strip all HTML tags
-  let cleanText = decoded.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-
-  let snippet = listItems.length > 0 ? listItems[0] : cleanText;
-  if (!snippet || snippet.length < 15 || snippet.startsWith('http')) {
-    snippet = fallbackTitle || 'Read the full verified story and coverage on Google News.';
-  }
-
-  let fullDescription = '';
-  if (listItems.length > 1) {
-    fullDescription = listItems.map(item => `• ${item}`).join('\n\n');
-  } else if (cleanText.length > 40) {
-    fullDescription = cleanText;
-  } else {
-    fullDescription = `${fallbackTitle}.\n\nFull breaking news story and context provided by ${source || 'Google News'}. Tap the original link below to view complete press statements, analysis, and multimedia reports.`;
-  }
-
-  return {
-    snippet: snippet.substring(0, 240),
-    fullDescription,
-    relatedSources: listItems
-  };
-}
-
-// Clean and sanitize Google News snippets for cards
-function cleanGoogleNewsSnippet(snippet, title) {
-  if (!snippet) return title || 'Read the full coverage on Google News.';
-  // Strip all HTML tags and normalize spacing
-  let clean = snippet.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-  clean = cleanHtml(clean);
-  if (title && clean.startsWith(title)) {
-    clean = clean.substring(title.length).replace(/^[\s:;,-]+/, '').trim();
-  }
-  if (!clean || clean.length < 10) {
-    return title || 'Read the full verified story and coverage on Google News.';
-  }
-  return clean.substring(0, 240);
-}
-
-// Helper: Parse Google News RSS Feed
-function parseGoogleNewsRss(xmlText, categoryId, categoryName) {
-  const items = [];
-  const itemMatches = xmlText.matchAll(/<item>([\s\S]*?)<\/item>/gi);
-  for (const match of itemMatches) {
-    const itemXml = match[1];
-    let title = (itemXml.match(/<title>([\s\S]*?)<\/title>/i) || [])[1] || '';
-    let link = (itemXml.match(/<link>([\s\S]*?)<\/link>/i) || [])[1] || '';
-    const pubDateStr = (itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/i) || [])[1] || '';
-    const desc = (itemXml.match(/<description>([\s\S]*?)<\/description>/i) || [])[1] || '';
-    const sourceMatch = itemXml.match(/<source[^>]*url="([^"]*)"[^>]*>([\s\S]*?)<\/source>/i);
-    const source = sourceMatch ? cleanHtml(sourceMatch[2]) : 'Google News';
-    const sourceUrl = sourceMatch ? sourceMatch[1] : '';
-
-    title = cleanHtml(title);
-    if (source && title.endsWith(` - ${source}`)) {
-      title = title.substring(0, title.length - (source.length + 3)).trim();
-    }
-
-    const { snippet, fullDescription, relatedSources } = parseGoogleNewsDescription(desc, title, source);
-    const pubDate = pubDateStr ? new Date(pubDateStr) : new Date();
-
-    // Determine domain for publisher favicon
-    let domain = '';
-    try {
-      if (sourceUrl) {
-        domain = new URL(sourceUrl).hostname.replace(/^www\./, '');
-      } else if (link) {
-        domain = 'news.google.com';
-      }
-    } catch (e) {
-      domain = 'news.google.com';
-    }
-
-    const sourceFavicon = domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64` : '';
-    const imageUrl = getRelatedNewsImage(title, categoryId);
-
-    if (title && link) {
-      items.push({
-        id: Buffer.from(link).toString('base64').substring(0, 24),
-        title,
-        link: link.trim(),
-        source,
-        sourceUrl,
-        sourceFavicon,
-        imageUrl,
-        category: categoryId,
-        categoryName,
-        pubDate: pubDate.toISOString(),
-        timeAgo: formatRelativeTime(pubDate),
-        snippet,
-        fullDescription,
-        relatedSources
-      });
-    }
-  }
-  return items;
-}
-
-// Update News from Google News (Auto-refreshes every 20 minutes)
-const NEWS_REFRESH_INTERVAL_MS = 20 * 60 * 1000; // 20 minutes
-
-async function refreshGoogleNews(force = false) {
-  if (!force && newsState.lastUpdated) {
-    const elapsed = Date.now() - new Date(newsState.lastUpdated).getTime();
-    if (elapsed < NEWS_REFRESH_INTERVAL_MS && newsState.articles.length > 0) {
-      return newsState;
-    }
-  }
-
-  if (newsState.isUpdating) {
-    return newsState;
-  }
-
-  newsState.isUpdating = true;
-  console.log('[Google News] Fetching fresh news update from Google (20-min cycle)...');
-
-  try {
-    const allArticles = [];
-
-    for (const cat of GOOGLE_NEWS_CATEGORIES) {
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 8000);
-        const res = await fetch(cat.url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-          },
-          signal: controller.signal
-        });
-        clearTimeout(timer);
-
-        if (res.ok) {
-          const xml = await res.text();
-          const items = parseGoogleNewsRss(xml, cat.id, cat.name);
-          for (const item of items) {
-            // Check intelligent duplicate match
-            const isDuplicate = allArticles.some(existing => areHeadlinesDuplicates(existing.title, item.title));
-            if (!isDuplicate) {
-              allArticles.push(item);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn(`[Google News] Failed fetching category ${cat.name}:`, err.message);
-      }
-    }
-
-    if (allArticles.length > 0) {
-      // Sort newest first
-      allArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-
-      newsState.articles = allArticles;
-      newsState.lastUpdated = new Date().toISOString();
-
-      // Persist to cache file
-      try {
-        fs.writeFileSync(NEWS_CACHE_FILE, JSON.stringify({
-          lastUpdated: newsState.lastUpdated,
-          articles: newsState.articles
-        }, null, 2));
-      } catch (e) {
-        console.warn('[Google News] Could not write cache file:', e.message);
-      }
-
-      console.log(`[Google News] Successfully updated ${allArticles.length} recent articles. Next update in 20 minutes.`);
-    }
-  } catch (err) {
-    console.error('[Google News] Error updating news:', err.message);
-  } finally {
-    newsState.isUpdating = false;
-  }
-
-  return newsState;
-}
-
-// Load cached news on startup
-function initNewsCache() {
-  try {
-    if (fs.existsSync(NEWS_CACHE_FILE)) {
-      const saved = JSON.parse(fs.readFileSync(NEWS_CACHE_FILE, 'utf8'));
-      if (saved && Array.isArray(saved.articles) && saved.articles.length > 0) {
-        const uniqueArticles = [];
-        for (const rawArticle of saved.articles) {
-          const article = { ...rawArticle };
-          if (!article.imageUrl) {
-            article.imageUrl = getRelatedNewsImage(article.title, article.category);
-          }
-          if (!article.sourceFavicon && article.sourceUrl) {
-            try {
-              const dom = new URL(article.sourceUrl).hostname.replace(/^www\./, '');
-              article.sourceFavicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(dom)}&sz=64`;
-            } catch (e) {}
-          }
-          if (!article.fullDescription) {
-            const parsed = parseGoogleNewsDescription(article.snippet, article.title, article.source);
-            article.snippet = parsed.snippet;
-            article.fullDescription = parsed.fullDescription;
-          }
-
-          // Deduplicate
-          const isDuplicate = uniqueArticles.some(existing => areHeadlinesDuplicates(existing.title, article.title));
-          if (!isDuplicate) {
-            uniqueArticles.push(article);
-          }
-        }
-        newsState.articles = uniqueArticles;
-        newsState.lastUpdated = saved.lastUpdated;
-        console.log(`[Google News] Loaded and deduplicated ${uniqueArticles.length} cached articles with related images (Updated: ${saved.lastUpdated})`);
-      }
-    }
-  } catch (e) {
-    console.warn('[Google News] Failed to load cache file:', e.message);
-  }
-
-  // Initial fetch or refresh
-  refreshGoogleNews().catch(err => console.error('[Google News] Startup fetch error:', err.message));
-
-  // Schedule automatic update check every 20 minutes
-  setInterval(() => {
-    refreshGoogleNews(false).catch(err => console.error('[Google News] Periodic check error:', err.message));
-  }, 20 * 60 * 1000);
-}
-initNewsCache();
-
-// -------------------------------------------------------------
-// IN-MEMORY HIGH-SPEED STREAM CACHE (ULTRA-FAST DOWNLOADS)
+// IN-MEMORY HIGH-SPEED STREAM CACHE
 // -------------------------------------------------------------
 const STREAM_CACHE = new Map();
-const STREAM_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+const STREAM_CACHE_TTL = 30 * 60 * 1000;
 
 function getCached(key) {
   const entry = STREAM_CACHE.get(key);
@@ -665,7 +240,7 @@ function getCached(key) {
 }
 
 function setCache(key, data) {
-  if (STREAM_CACHE.size > 500) {
+  if (STREAM_CACHE.size > 400) {
     const firstKey = STREAM_CACHE.keys().next().value;
     STREAM_CACHE.delete(firstKey);
   }
@@ -673,25 +248,22 @@ function setCache(key, data) {
 }
 
 // -------------------------------------------------------------
-// VIDEO DOWNLOAD & METADATA HANDLING
+// VIDEO DOWNLOAD & METADATA HANDLING (YOUTUBE, TIKTOK & WEB)
 // -------------------------------------------------------------
 function normalizeVideoUrl(inputUrl) {
   if (!inputUrl) return '';
   const trimmed = inputUrl.trim();
 
-  // Match shorts: /shorts/ID
   const shortsMatch = trimmed.match(/\/shorts\/([a-zA-Z0-9_-]{11})/i);
   if (shortsMatch && shortsMatch[1]) {
     return `https://www.youtube.com/watch?v=${shortsMatch[1]}`;
   }
 
-  // Match youtu.be/ID
   const youtuMatch = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/i);
   if (youtuMatch && youtuMatch[1]) {
     return `https://www.youtube.com/watch?v=${youtuMatch[1]}`;
   }
 
-  // Match standard watch?v=ID
   const watchMatch = trimmed.match(/[?&]v=([a-zA-Z0-9_-]{11})/i);
   if (watchMatch && watchMatch[1]) {
     return `https://www.youtube.com/watch?v=${watchMatch[1]}`;
@@ -715,11 +287,7 @@ function decodeSavetubeData(enc) {
   }
 }
 
-// -------------------------------------------------------------
-// UNIVERSAL VIDEO & STREAM EXTRACTION ENGINE
-// -------------------------------------------------------------
-
-function extractWithYtDlp(url, quality = '720', type = 'video') {
+function extractWithYtDlp(targetUrl, quality = '720', type = 'video') {
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(YT_DLP_BIN)) {
       return reject(new Error('yt-dlp binary not available'));
@@ -729,13 +297,12 @@ function extractWithYtDlp(url, quality = '720', type = 'video') {
       ? 'bestaudio[ext=m4a]/bestaudio/best'
       : `best[height<=${qNum}][ext=mp4]/18/b/best[ext=mp4]/best/worst`;
 
-    // Strategy 1: Rich JSON metadata extraction
     const jsonArgs = [
       '--js-runtimes', `node:${NODE_BIN}`,
       '--no-playlist',
       '--no-warnings',
       '--dump-single-json',
-      url
+      targetUrl
     ];
 
     execFile(YT_DLP_BIN, jsonArgs, { maxBuffer: 15 * 1024 * 1024, timeout: 20000 }, (err, stdout) => {
@@ -749,7 +316,6 @@ function extractWithYtDlp(url, quality = '720', type = 'video') {
               const bestAudio = audioOnly.find(f => f.ext === 'm4a' || f.ext === 'mp3') || audioOnly[audioOnly.length - 1];
               if (bestAudio && bestAudio.url) chosenUrl = bestAudio.url;
             } else {
-              // Look for combined audio+video progressive MP4 format
               const progMp4 = data.formats.filter(f => f.url && f.vcodec !== 'none' && f.acodec !== 'none' && f.ext === 'mp4');
               const exactOrLower = progMp4.filter(f => f.height && f.height <= qNum).pop() || progMp4[0];
               if (exactOrLower && exactOrLower.url) {
@@ -775,19 +341,16 @@ function extractWithYtDlp(url, quality = '720', type = 'video') {
               platform: data.extractor_key || data.extractor || 'Web Video'
             });
           }
-        } catch (pe) {
-          // JSON parsing failed, proceed to fallback
-        }
+        } catch (pe) {}
       }
 
-      // Strategy 2: Direct stream extraction via -g
       const gArgs = [
         '--js-runtimes', `node:${NODE_BIN}`,
         '--no-playlist',
         '--no-warnings',
         '-g',
         '-f', formatArg,
-        url
+        targetUrl
       ];
       execFile(YT_DLP_BIN, gArgs, { timeout: 15000 }, (gErr, gStdout) => {
         if (!gErr && gStdout && gStdout.trim()) {
@@ -810,10 +373,9 @@ function extractWithYtDlp(url, quality = '720', type = 'video') {
   });
 }
 
-async function extractTikTok(url) {
-  // Method 1: TikWM API (Fastest & most reliable)
+async function extractTikTok(targetUrl) {
   try {
-    const tikRes = await fetchJson(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`, {
+    const tikRes = await fetchJson(`https://www.tikwm.com/api/?url=${encodeURIComponent(targetUrl)}`, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       timeout: 7000
     });
@@ -836,9 +398,8 @@ async function extractTikTok(url) {
     console.warn('[TikTok TikWM lookup warning]:', e.message);
   }
 
-  // Method 2: TikMate API
   try {
-    const postBody = new URLSearchParams({ url }).toString();
+    const postBody = new URLSearchParams({ url: targetUrl }).toString();
     const res = await fetch('https://api.tikmate.app/api/lookup', {
       method: 'POST',
       headers: {
@@ -868,9 +429,8 @@ async function extractTikTok(url) {
     console.warn('[TikTok TikMate lookup warning]:', e.message);
   }
 
-  // Method 3: yt-dlp fallback
   try {
-    const ytRes = await extractWithYtDlp(url, '720', 'video');
+    const ytRes = await extractWithYtDlp(targetUrl, '720', 'video');
     if (ytRes && ytRes.downloadUrl) {
       return {
         id: `tiktok_${Date.now()}`,
@@ -889,353 +449,14 @@ async function extractTikTok(url) {
   return null;
 }
 
-async function extractInstagram(url, quality = '720', type = 'video') {
-  // Helper to query SaveIG API with specified type
-  async function querySaveIg(targetType = 'media') {
-    try {
-      const homeRes = await fetch('https://saveig.to/en', {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-        },
-        signal: AbortSignal.timeout(6000)
-      });
-      const html = await homeRes.text();
-      const expMatch = html.match(/k_exp="([^"]+)"/);
-      const tokenMatch = html.match(/k_token="([^"]+)"/);
-      if (!expMatch || !tokenMatch) return null;
+async function extractYouTube(targetUrl, quality = '720', type = 'video') {
+  const normalizedUrl = normalizeVideoUrl(targetUrl) || targetUrl;
+  targetUrl = normalizedUrl;
 
-      const searchRes = await fetch('https://saveig.to/api/ajaxSearch', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-          'Origin': 'https://saveig.to',
-          'Referer': 'https://saveig.to/en',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: new URLSearchParams({
-          k_exp: expMatch[1],
-          k_token: tokenMatch[1],
-          q: url,
-          t: targetType,
-          lang: 'en',
-          v: 'v2'
-        }).toString(),
-        signal: AbortSignal.timeout(9000)
-      });
-      const data = await searchRes.json();
-      return (data && data.data) ? data.data : null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  // Method 1: SaveIG with robust video/photo discrimination
-  try {
-    let rawData = await querySaveIg('media');
-    if (!rawData) rawData = await querySaveIg('reels');
-    if (!rawData) rawData = await querySaveIg('video');
-
-    if (rawData) {
-      let decodedHtml = '';
-      const mockElem = { set innerHTML(val) { decodedHtml += val; }, get innerHTML() { return decodedHtml; } };
-      const sandbox = {
-        document: { getElementById: () => mockElem, querySelector: () => mockElem, querySelectorAll: () => [mockElem] },
-        window: { location: { hostname: 'saveig.to', href: 'https://saveig.to/en' } },
-        location: { hostname: 'saveig.to', href: 'https://saveig.to/en' },
-        console: { log: () => {} }
-      };
-      vm.createContext(sandbox);
-      try {
-        vm.runInContext(rawData, sandbox, { timeout: 3000 });
-      } catch (ve) {
-        decodedHtml = rawData;
-      }
-
-      const anchorMatches = [...decodedHtml.matchAll(/<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
-      const videoCandidates = [];
-      const photoCandidates = [];
-
-      for (const m of anchorMatches) {
-        const href = m[1];
-        const innerText = m[2].replace(/<[^>]+>/g, '').trim().toLowerCase();
-        if (!href.includes('snapcdn') && !href.includes('saveig') && !href.includes('instagram.com') && !href.includes('fbcdn.net')) {
-          continue;
-        }
-
-        let filename = '';
-        let directUrl = '';
-        const tokenParam = href.match(/[?&]token=([^&]+)/);
-        if (tokenParam) {
-          try {
-            const payload = JSON.parse(Buffer.from(tokenParam[1].split('.')[1], 'base64').toString());
-            if (payload.filename) filename = payload.filename;
-            if (payload.url) directUrl = payload.url;
-          } catch (e) {}
-        }
-
-        const isVideoExt = /\.(mp4|m4v|mov|webm)/i.test(filename) || /\.(mp4|m4v|mov|webm)/i.test(href) || /\.(mp4|m4v|mov|webm)/i.test(directUrl);
-        const isVideoText = innerText.includes('video') || innerText.includes('download mp4') || innerText.includes('watch') || innerText.includes('reel');
-        const isPhotoExt = /\.(jpg|jpeg|png|webp)/i.test(filename) || /\.(jpg|jpeg|png|webp)/i.test(href) || /\.(jpg|jpeg|png|webp)/i.test(directUrl);
-        const isPhotoText = innerText.includes('photo') || innerText.includes('image') || innerText.includes('picture');
-
-        const candidate = {
-          downloadUrl: href,
-          directUrl: directUrl || href,
-          filename: filename || (isVideoExt ? 'instagram_video.mp4' : 'instagram_photo.jpg'),
-          text: innerText
-        };
-
-        if (isVideoExt || (isVideoText && !isPhotoExt)) {
-          videoCandidates.push(candidate);
-        } else if (isPhotoExt || isPhotoText) {
-          photoCandidates.push(candidate);
-        } else {
-          if (href.includes('video')) videoCandidates.push(candidate);
-          else photoCandidates.push(candidate);
-        }
-      }
-
-      const thumbMatch = decodedHtml.match(/<img[^>]+src=["']([^"']+)["']/i);
-      const thumb = thumbMatch ? thumbMatch[1] : (photoCandidates[0]?.directUrl || '');
-
-      const isReelOrVideoUrl = /\/(reel|reels|tv)\//i.test(url) || type === 'video' || type === 'audio';
-
-      // If video requested or the link is definitely a video/reel
-      if (isReelOrVideoUrl || type !== 'photo') {
-        if (videoCandidates.length > 0) {
-          // Sort to pick 1080p or highest resolution video if available
-          const chosenVideo = videoCandidates.find(v => v.filename.includes('1080') || v.text.includes('1080')) || videoCandidates[0];
-          return {
-            downloadUrl: chosenVideo.downloadUrl,
-            title: chosenVideo.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ') || 'Instagram Reel Video',
-            thumbnail: thumb || chosenVideo.downloadUrl,
-            duration: 30,
-            durationLabel: '00:30',
-            author: 'Instagram Creator',
-            platform: 'Instagram',
-            quality: `${quality}p`,
-            type: type === 'audio' ? 'audio' : 'video',
-            isPhoto: false
-          };
-        }
-        // Do NOT return a photo candidate when the user is trying to download a video/reel!
-        // Fall through to other extraction methods instead.
-      }
-
-      // If photo requested OR if the post is NOT a reel/video and no video was found
-      if ((type === 'photo' || !isReelOrVideoUrl) && photoCandidates.length > 0) {
-        const chosenPhoto = photoCandidates[0];
-        return {
-          downloadUrl: chosenPhoto.downloadUrl,
-          title: chosenPhoto.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ') || 'Instagram High-Res Photo',
-          thumbnail: thumb || chosenPhoto.directUrl || chosenPhoto.downloadUrl,
-          duration: 0,
-          durationLabel: 'Photo HD',
-          author: 'Instagram Creator',
-          platform: 'Instagram',
-          quality: 'Original HD',
-          type: 'photo',
-          isPhoto: true,
-          photos: photoCandidates.map(p => ({
-            downloadUrl: p.downloadUrl,
-            directUrl: p.directUrl,
-            filename: p.filename
-          }))
-        };
-      }
-    }
-  } catch (e) {
-    console.warn('[SaveIG extract error]:', e.message);
-  }
-
-  const isReelOrVideoUrl = /\/(reel|reels|tv)\//i.test(url) || type === 'video' || type === 'audio';
-
-  // Method 2: cakkatrokDownloader (snapvideo.app integration)
-  if (cakkatrokDownloader) {
-    try {
-      const res = await cakkatrokDownloader(url);
-      if (res && Array.isArray(res.media) && res.media.length > 0) {
-        const vidItem = res.media.find(m => m.type === 'video');
-        const photoItem = res.media.find(m => m.type === 'photo') || res.media[0];
-
-        if (vidItem) {
-          return {
-            downloadUrl: vidItem.url,
-            title: vidItem.filename ? vidItem.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ') : 'Instagram Reel Video',
-            thumbnail: photoItem.url,
-            duration: 30,
-            durationLabel: '00:30',
-            author: 'Instagram Creator',
-            platform: 'Instagram',
-            quality: `${quality}p`,
-            type: type === 'audio' ? 'audio' : 'video',
-            isPhoto: false
-          };
-        }
-
-        if (!isReelOrVideoUrl && (type === 'photo' || !vidItem)) {
-          return {
-            downloadUrl: photoItem.url,
-            title: photoItem.filename ? photoItem.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ') : 'Instagram Photo',
-            thumbnail: photoItem.url,
-            duration: 0,
-            durationLabel: 'Photo HD',
-            author: 'Instagram Creator',
-            platform: 'Instagram',
-            quality: 'Original HD',
-            type: 'photo',
-            isPhoto: true
-          };
-        }
-      }
-    } catch (e) {
-      console.warn('[cakkatrok extract error]:', e.message);
-    }
-  }
-
-  // Method 3: SnapVideo direct API
-  try {
-    const snapHome = await fetch('https://snapvideo.app/en', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-      signal: AbortSignal.timeout(6000)
-    });
-    const sHtml = await snapHome.text();
-    const exp = sHtml.match(/k_exp="([^"]+)"/);
-    const token = sHtml.match(/k_token="([^"]+)"/);
-    if (exp && token) {
-      const snapRes = await fetch('https://snapvideo.app/api/ajaxSearch', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-          'Origin': 'https://snapvideo.app',
-          'Referer': 'https://snapvideo.app/en',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        },
-        body: new URLSearchParams({
-          k_exp: exp[1],
-          k_token: token[1],
-          q: url,
-          t: 'media',
-          lang: 'en'
-        }).toString(),
-        signal: AbortSignal.timeout(8000)
-      });
-      const sData = await snapRes.json();
-      if (sData && sData.data) {
-        const hrefs = [...String(sData.data).matchAll(/href=["']([^"']+)["']/g)].map(m => m[1]);
-        const links = hrefs.filter(h => h.includes('snapcdn.app') || h.includes('instagram.com') || h.includes('fbcdn.net'));
-        const vLinks = links.filter(l => /\.(mp4|webm)/i.test(l) || l.includes('video'));
-        const pLinks = links.filter(l => /\.(jpg|jpeg|png|webp)/i.test(l) || l.includes('photo'));
-
-        if (vLinks.length > 0) {
-          return {
-            downloadUrl: vLinks[0],
-            title: 'Instagram Video',
-            thumbnail: pLinks[0] || vLinks[0],
-            duration: 30,
-            durationLabel: '00:30',
-            author: 'Instagram Creator',
-            platform: 'Instagram',
-            quality: `${quality}p`,
-            type: type === 'audio' ? 'audio' : 'video',
-            isPhoto: false
-          };
-        } else if (!isReelOrVideoUrl && pLinks.length > 0) {
-          return {
-            downloadUrl: pLinks[0],
-            title: 'Instagram High-Res Photo',
-            thumbnail: pLinks[0],
-            duration: 0,
-            durationLabel: 'Photo HD',
-            author: 'Instagram Creator',
-            platform: 'Instagram',
-            quality: 'Original HD',
-            type: 'photo',
-            isPhoto: true
-          };
-        }
-      }
-    }
-  } catch (e) {}
-
-  // Method 4: yt-dlp fallback (Best Video stream)
-  try {
-    const ytdlRes = await extractWithYtDlp(url, quality, type);
-    if (ytdlRes && ytdlRes.downloadUrl) {
-      return {
-        ...ytdlRes,
-        platform: 'Instagram',
-        isPhoto: false
-      };
-    }
-  } catch (e) {}
-
-  return null;
-}
-
-async function extractFacebook(url, quality = '720', type = 'video') {
-  // Method 1: yt-dlp (Fast, robust, direct fbcdn mp4 streams)
-  try {
-    const ytdlRes = await extractWithYtDlp(url, quality, type);
-    if (ytdlRes && ytdlRes.downloadUrl) {
-      return {
-        ...ytdlRes,
-        platform: 'Facebook'
-      };
-    }
-  } catch (e) {
-    console.warn('[Facebook yt-dlp warning]:', e.message);
-  }
-
-  // Method 2: Public Facebook page parser
-  try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-      },
-      signal: AbortSignal.timeout(8000)
-    });
-    if (res.ok) {
-      const html = await res.text();
-      const hdMatch = html.match(/(?:browser_native_hd_url|playable_url_quality_hd)["']?\s*:\s*["'](https:[^"']+)["']/i);
-      const sdMatch = html.match(/(?:browser_native_sd_url|playable_url)["']?\s*:\s*["'](https:[^"']+)["']/i);
-      const targetMatch = (quality === '1080' || quality === '720' ? (hdMatch || sdMatch) : (sdMatch || hdMatch));
-      if (targetMatch && targetMatch[1]) {
-        const raw = targetMatch[1].replace(/\\u0026/g, '&').replace(/\\\//g, '/');
-        const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
-        const thumbMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
-        return {
-          downloadUrl: raw,
-          title: titleMatch ? titleMatch[1].replace(/\s*\|\s*Facebook/i, '').trim() : 'Facebook Video',
-          thumbnail: thumbMatch ? thumbMatch[1] : '',
-          duration: 60,
-          durationLabel: '01:00',
-          author: 'Facebook Creator',
-          platform: 'Facebook',
-          quality: hdMatch ? 'HD' : 'SD',
-          type: type
-        };
-      }
-    }
-  } catch (e) {
-    console.warn('[Facebook page scraper warning]:', e.message);
-  }
-
-  return null;
-}
-
-async function extractYouTube(url, quality = '720', type = 'video') {
-  const normalizedUrl = normalizeVideoUrl(url) || url;
-  url = normalizedUrl;
-
-  // Method 1: @vreden/youtube_scraper (Under 1 second, SaveTube VIP CDN)
   if (vredenScraper) {
     try {
       if (type === 'audio' && typeof vredenScraper.ytmp3 === 'function') {
-        const mp3Res = await vredenScraper.ytmp3(url);
+        const mp3Res = await vredenScraper.ytmp3(targetUrl);
         if (mp3Res && mp3Res.download && mp3Res.download.url) {
           return {
             downloadUrl: mp3Res.download.url,
@@ -1250,7 +471,7 @@ async function extractYouTube(url, quality = '720', type = 'video') {
           };
         }
       } else if (typeof vredenScraper.ytmp4 === 'function') {
-        const mp4Res = await vredenScraper.ytmp4(url);
+        const mp4Res = await vredenScraper.ytmp4(targetUrl);
         if (mp4Res && mp4Res.download && mp4Res.download.url) {
           return {
             downloadUrl: mp4Res.download.url,
@@ -1270,11 +491,10 @@ async function extractYouTube(url, quality = '720', type = 'video') {
     }
   }
 
-  // Method 2: SaveTube API direct with multi-quality fallback
   try {
     const cdnRes = await fetchJson('https://media.savetube.vip/api/random-cdn', { timeout: 5000 });
     const cdn = cdnRes && cdnRes.cdn ? cdnRes.cdn : 'cdn403.savetube.vip';
-    const infoRes = await postJson(`https://${cdn}/v2/info`, { url }, {
+    const infoRes = await postJson(`https://${cdn}/v2/info`, { url: targetUrl }, {
       headers: { 'Referer': 'https://save-tube.com/', 'User-Agent': 'Mozilla/5.0' },
       timeout: 6000
     });
@@ -1323,8 +543,7 @@ async function extractYouTube(url, quality = '720', type = 'video') {
     console.warn('[SaveTube direct warning]:', se.message);
   }
 
-  // Method 3: Invidious public instances
-  const ytMatch = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/) || url.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
+  const ytMatch = targetUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || targetUrl.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/) || targetUrl.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
   const videoId = ytMatch ? ytMatch[1] : null;
   if (videoId) {
     const invidiousHosts = ['inv.nadeko.net', 'yewtu.be', 'vid.puffyan.us'];
@@ -1354,9 +573,8 @@ async function extractYouTube(url, quality = '720', type = 'video') {
     }
   }
 
-  // Method 4: yt-dlp fallback
   try {
-    const ytdlRes = await extractWithYtDlp(url, quality, type);
+    const ytdlRes = await extractWithYtDlp(targetUrl, quality, type);
     if (ytdlRes && ytdlRes.downloadUrl) {
       return {
         ...ytdlRes,
@@ -1373,6 +591,9 @@ async function extractUniversalVideo(rawUrl, quality = '720', type = 'video') {
   if (!cleanUrl) {
     throw new Error('Empty URL provided');
   }
+  if (isUnsupportedPlatformUrl(cleanUrl)) {
+    throw new Error('Instagram and Facebook video downloading have been removed. Please use YouTube, TikTok, or direct video links.');
+  }
 
   // Tier 1: Direct media stream or file (.mp4, .webm, .mkv, .mov, .mp3, etc.)
   if (/\.(mp4|webm|mkv|mov|avi|flv|m4v|mp3|m4a|wav|aac)(\?.*)?$/i.test(cleanUrl) || cleanUrl.includes('.googlevideo.com/videoplayback')) {
@@ -1382,7 +603,7 @@ async function extractUniversalVideo(rawUrl, quality = '720', type = 'video') {
     return {
       downloadUrl: cleanUrl,
       title: cleanTitle,
-      thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
+      thumbnail: '',
       duration: 120,
       durationLabel: '02:00',
       author: 'Direct Media Source',
@@ -1392,16 +613,7 @@ async function extractUniversalVideo(rawUrl, quality = '720', type = 'video') {
     };
   }
 
-  // Tier 2: Instagram Reels, Posts, Stories, IGTV
-  const isInstagram = cleanUrl.toLowerCase().includes('instagram.com');
-  if (isInstagram) {
-    const ig = await extractInstagram(cleanUrl, quality, type);
-    if (ig && ig.downloadUrl) {
-      return ig;
-    }
-  }
-
-  // Tier 3: TikTok videos & audio (watermark-free)
+  // Tier 2: TikTok videos & audio (watermark-free)
   const isTikTok = cleanUrl.toLowerCase().includes('tiktok.com');
   if (isTikTok) {
     const tt = await extractTikTok(cleanUrl);
@@ -1409,7 +621,7 @@ async function extractUniversalVideo(rawUrl, quality = '720', type = 'video') {
       return {
         downloadUrl: type === 'audio' && tt.directAudio ? tt.directAudio : tt.directVideo,
         title: tt.title,
-        thumbnail: tt.thumbnail || 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=600&auto=format&fit=crop&q=80',
+        thumbnail: tt.thumbnail || '',
         duration: tt.duration,
         durationLabel: tt.durationLabel,
         author: tt.author,
@@ -1420,7 +632,7 @@ async function extractUniversalVideo(rawUrl, quality = '720', type = 'video') {
     }
   }
 
-  // Tier 4: YouTube Videos, Shorts, Audio
+  // Tier 3: YouTube Videos, Shorts, Audio
   const isYouTube = cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be');
   if (isYouTube) {
     const yt = await extractYouTube(cleanUrl, quality, type);
@@ -1429,16 +641,7 @@ async function extractUniversalVideo(rawUrl, quality = '720', type = 'video') {
     }
   }
 
-  // Tier 5: Facebook Videos & Reels
-  const isFacebook = cleanUrl.includes('facebook.com') || cleanUrl.includes('fb.watch') || cleanUrl.includes('fb.gg');
-  if (isFacebook) {
-    const fb = await extractFacebook(cleanUrl, quality, type);
-    if (fb && fb.downloadUrl) {
-      return fb;
-    }
-  }
-
-  // Tier 6: Multi-platform yt-dlp Extractor (Twitter/X, Reddit, Vimeo, Dailymotion, Soundcloud, Pinterest, Twitch, Threads, etc.)
+  // Tier 4: Multi-platform yt-dlp Extractor (X/Twitter, Reddit, Vimeo, Dailymotion, etc.)
   try {
     const ytdlRes = await extractWithYtDlp(cleanUrl, quality, type);
     if (ytdlRes && ytdlRes.downloadUrl) {
@@ -1452,7 +655,7 @@ async function extractUniversalVideo(rawUrl, quality = '720', type = 'video') {
     console.warn('[yt-dlp extract warning]:', ytdlErr.message);
   }
 
-  // Tier 7: Universal OpenGraph, JSON-LD & HTML5 Video Scraper (Any public video website)
+  // Tier 5: Universal HTML5 Video Scraper (Public non-blocked video pages)
   try {
     const pageRes = await fetch(cleanUrl, {
       headers: {
@@ -1494,63 +697,44 @@ async function extractUniversalVideo(rawUrl, quality = '720', type = 'video') {
           type: type
         };
       }
-
-      // Tier 8: Only return image if user explicitly requested photo OR if the URL is not a video/reel
-      const isVideoLink = /\/(reel|reels|watch|video|tv)\//i.test(cleanUrl) || type === 'video' || type === 'audio';
-      if ((type === 'photo' || (!type && !isVideoLink)) && pageThumb) {
-        return {
-          downloadUrl: pageThumb,
-          title: pageTitle,
-          thumbnail: pageThumb,
-          duration: 0,
-          durationLabel: 'Photo HD',
-          author: 'Online Creator',
-          platform: 'Social Media',
-          quality: 'Original HD',
-          type: 'photo',
-          isPhoto: true
-        };
-      }
     }
   } catch (he) {
     console.warn('[HTML Scraper warning]:', he.message);
   }
 
-  // Universal Fallback: return null so caller knows no stream was found
   return null;
 }
 
 async function fetchVideoInfo(rawUrl) {
+  if (isUnsupportedPlatformUrl(rawUrl)) {
+    throw new Error('Instagram and Facebook video downloading have been removed.');
+  }
+
   const cached = getCached(`info_${rawUrl}`);
   if (cached) {
     return cached;
   }
 
   const isTikTok = rawUrl.toLowerCase().includes('tiktok.com');
-  const isInstagram = rawUrl.toLowerCase().includes('instagram.com');
   const isYouTube = rawUrl.includes('youtube.com') || rawUrl.includes('youtu.be');
 
-  // Attempt universal extraction for instant metadata and stream caching
   try {
     const extracted = await extractUniversalVideo(rawUrl, '720', 'video');
     if (extracted) {
-      const isPhoto = extracted.type === 'photo' || extracted.isPhoto;
       const result = {
         info: {
           id: `media_${Date.now()}`,
-          title: extracted.title || (isPhoto ? 'Instagram Photo' : 'Video Media'),
-          thumbnail: extracted.thumbnail || (isInstagram ? 'https://images.unsplash.com/photo-1611262588024-d12430b98920?w=600&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80'),
-          duration: extracted.duration || (isPhoto ? 0 : 60),
-          durationLabel: extracted.durationLabel || (isPhoto ? 'Photo HD' : '01:00'),
-          directVideo: isPhoto ? null : extracted.downloadUrl,
+          title: extracted.title || 'Video Media',
+          thumbnail: extracted.thumbnail || '',
+          duration: extracted.duration || 60,
+          durationLabel: extracted.durationLabel || '01:00',
+          directVideo: extracted.downloadUrl,
           author: extracted.author || 'Creator',
-          platform: extracted.platform || (isYouTube ? 'YouTube' : (isTikTok ? 'TikTok' : (isInstagram ? 'Instagram' : 'Web Video'))),
+          platform: extracted.platform || (isYouTube ? 'YouTube' : (isTikTok ? 'TikTok' : 'Web Video')),
           key: `key_${Date.now()}`,
           isSocial: !isYouTube,
           originalUrl: rawUrl,
-          type: extracted.type || (isPhoto ? 'photo' : 'video'),
-          isPhoto: !!isPhoto,
-          photos: extracted.photos || []
+          type: extracted.type || 'video'
         },
         cdn: 'universal',
         normalizedUrl: rawUrl
@@ -1562,7 +746,6 @@ async function fetchVideoInfo(rawUrl) {
     console.warn('[fetchVideoInfo universal extract fallback]:', extractErr.message);
   }
 
-  // Fast YouTube oEmbed metadata fallback
   if (isYouTube) {
     const ytMatch = rawUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || rawUrl.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/) || rawUrl.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
     const ytId = ytMatch ? ytMatch[1] : `yt_${Date.now()}`;
@@ -1591,8 +774,7 @@ async function fetchVideoInfo(rawUrl) {
         isSocial: false,
         platform: 'YouTube',
         originalUrl: rawUrl,
-        type: 'video',
-        isPhoto: false
+        type: 'video'
       },
       cdn: 'universal',
       normalizedUrl: rawUrl
@@ -1601,21 +783,19 @@ async function fetchVideoInfo(rawUrl) {
     return result;
   }
 
-  // Generic fallback info
   const fallbackInfo = {
     info: {
       id: `media_${Date.now()}`,
-      title: isInstagram ? 'Instagram Video Reel' : (isTikTok ? 'TikTok Video' : 'Online Video Stream'),
-      thumbnail: isInstagram ? 'https://images.unsplash.com/photo-1611262588024-d12430b98920?w=600&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
+      title: isTikTok ? 'TikTok Video' : 'Online Video Stream',
+      thumbnail: '',
       duration: 60,
       durationLabel: '01:00',
       author: 'Creator',
-      platform: isInstagram ? 'Instagram' : (isTikTok ? 'TikTok' : 'Web Video'),
+      platform: isTikTok ? 'TikTok' : 'Web Video',
       key: `media_${Date.now()}`,
       isSocial: true,
       originalUrl: rawUrl,
-      type: 'video',
-      isPhoto: false
+      type: 'video'
     },
     cdn: 'universal',
     normalizedUrl: rawUrl
@@ -1632,15 +812,13 @@ async function requestDownloadLink(cdn, info, quality, type) {
     return cached;
   }
 
-  const isInfoPhoto = info.type === 'photo' || info.isPhoto;
-  const cleanTitle = (info.title || (isInfoPhoto ? 'instagram_photo' : 'video'))
+  const cleanTitle = (info.title || 'video')
     .replace(/[^\w\s.-]/gi, '')
     .trim()
     .replace(/\s+/g, '_')
-    .substring(0, 60) || (isInfoPhoto ? 'photo_download' : 'media_download');
+    .substring(0, 60) || 'media_download';
 
-  // If info already holds a direct video matching the request
-  if (info.directVideo && type !== 'audio' && !isInfoPhoto) {
+  if (info.directVideo && type !== 'audio') {
     const res = {
       success: true,
       downloadUrl: info.directVideo,
@@ -1649,14 +827,12 @@ async function requestDownloadLink(cdn, info, quality, type) {
       duration: info.durationLabel || 'HD',
       thumbnail: info.thumbnail,
       quality: `${qualityStr}p`,
-      type: 'video',
-      isPhoto: false
+      type: 'video'
     };
     setCache(cacheKey, res);
     return res;
   }
 
-  // Call the universal multi-tier extraction engine
   const targetUrl = info.originalUrl || info.normalizedUrl || `https://www.youtube.com/watch?v=${info.id || info.key}`;
   const extracted = await extractUniversalVideo(targetUrl, qualityStr, type);
 
@@ -1664,22 +840,16 @@ async function requestDownloadLink(cdn, info, quality, type) {
     throw new Error('Unable to extract playable direct stream for this media');
   }
 
-  const isExtractedPhoto = extracted.type === 'photo' || extracted.isPhoto;
-  const ext = type === 'audio' ? 'mp3' : (isExtractedPhoto ? 'jpg' : 'mp4');
-  const finalDownloadUrl = extracted.downloadUrl;
+  const ext = type === 'audio' ? 'mp3' : 'mp4';
   const res = {
     success: true,
-    downloadUrl: finalDownloadUrl,
-    filename: isExtractedPhoto
-      ? `${cleanTitle}_HD.${ext}`
-      : `${cleanTitle}_${qualityStr}${type === 'audio' ? 'kbps' : 'p'}.${ext}`,
-    title: extracted.title || info.title || (isExtractedPhoto ? 'High-Res Photo' : 'Media Video'),
-    duration: extracted.durationLabel || info.durationLabel || (isExtractedPhoto ? 'Photo HD' : 'HD'),
+    downloadUrl: extracted.downloadUrl,
+    filename: `${cleanTitle}_${qualityStr}${type === 'audio' ? 'kbps' : 'p'}.${ext}`,
+    title: extracted.title || info.title || 'Media Video',
+    duration: extracted.durationLabel || info.durationLabel || 'HD',
     thumbnail: extracted.thumbnail || info.thumbnail,
-    quality: extracted.quality || (isExtractedPhoto ? 'Original HD' : `${qualityStr}${type === 'audio' ? 'kbps' : 'p'}`),
-    type: isExtractedPhoto ? 'photo' : (type === 'audio' ? 'audio' : 'video'),
-    isPhoto: isExtractedPhoto,
-    photos: extracted.photos || []
+    quality: extracted.quality || `${qualityStr}${type === 'audio' ? 'kbps' : 'p'}`,
+    type: type === 'audio' ? 'audio' : 'video'
   };
 
   setCache(cacheKey, res);
@@ -1690,12 +860,10 @@ async function requestDownloadLink(cdn, info, quality, type) {
 // HTTP SERVER
 // -------------------------------------------------------------
 const server = http.createServer(async (req, res) => {
-  // Apply defensive security headers and strip server fingerprints
   applyDefensiveSecurityHeaders(res);
 
   const clientIp = getClientIp(req);
 
-  // Method gating: Only allow standard HTTP methods
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
@@ -1716,30 +884,49 @@ const server = http.createServer(async (req, res) => {
   let reqPath = parsedUrl.pathname;
 
   // Fast drop for automated malicious scanners searching for PHP/WordPress/env exploits
-  // Saves Render free tier CPU/memory by rejecting PHP probes without disk lookups
   if (reqPath.endsWith('.php') || reqPath.includes('.php/') || reqPath.startsWith('/wp-') || reqPath.includes('phpmyadmin') || reqPath.includes('xmlrpc') || reqPath.startsWith('/.env') || reqPath.startsWith('/.git')) {
     res.writeHead(404, { 'Content-Type': 'text/plain', 'X-Robots-Tag': 'noindex, nofollow' });
     res.end('Not Found');
     return;
   }
 
-  // SEO: 301 Redirect /index.html to / to prevent duplicate content in Google Search Console
-  if (reqPath === '/index.html' && parsedUrl.pathname === '/index.html') {
+  // 301 Redirect /index.html to / and /*.html subpages to clean canonical URLs
+  if (reqPath === '/index.html') {
     res.writeHead(301, { 'Location': '/' + (parsedUrl.search || '') });
     res.end();
     return;
   }
+  const htmlSubpageMatch = reqPath.match(/^\/(about|dmca|privacy|terms|contact)\.html$/i);
+  if (htmlSubpageMatch) {
+    res.writeHead(301, { 'Location': `/${htmlSubpageMatch[1].toLowerCase()}` + (parsedUrl.search || '') });
+    res.end();
+    return;
+  }
 
-  // SEO: 301 Redirect trailing slash (e.g. /news/ -> /news)
+  // 301 Redirect trailing slash
   if (reqPath.length > 1 && reqPath.endsWith('/')) {
     res.writeHead(301, { 'Location': reqPath.slice(0, -1) + (parsedUrl.search || '') });
     res.end();
     return;
   }
 
+  // Clean 410 Gone for retired /news section so search engines de-index immediately
+  if (reqPath === '/news' || reqPath === '/news.html' || reqPath === '/api/news') {
+    res.writeHead(410, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'X-Robots-Tag': 'noindex, nofollow'
+    });
+    res.end('410 Gone - The news section has been permanently removed.');
+    return;
+  }
+
+  // Serve crisp vector icon for /favicon.ico requests so Google Favicon & browsers never get 404
+  if (reqPath === '/favicon.ico') {
+    reqPath = '/favicon.svg';
+  }
+
   const cleanRoutes = {
     '/': '/index.html',
-    '/news': '/news.html',
     '/about': '/about.html',
     '/dmca': '/dmca.html',
     '/privacy': '/privacy.html',
@@ -1751,22 +938,31 @@ const server = http.createServer(async (req, res) => {
     reqPath = cleanRoutes[reqPath];
   }
 
-  // Rate Limiting (120 req/min for static pages, 40 req/min for APIs)
+  // Rate Limiting (exempt search engine crawlers & inspection tools on non-API routes)
+  const ua = String(req.headers['user-agent'] || '');
+  const isSearchCrawler = /Googlebot|Google-InspectionTool|InspectionTool|AdsBot-Google|Mediapartners-Google|bingbot|Applebot/i.test(ua);
   const isApiReq = reqPath.startsWith('/api/');
-  const maxReqs = isApiReq ? 40 : 120;
-  if (!checkRateLimit(clientIp, maxReqs, 60000)) {
-    res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '60' });
-    res.end(JSON.stringify({ success: false, error: 'Rate limit exceeded. Please wait a moment.' }));
-    return;
+  if (isApiReq || !isSearchCrawler) {
+    const maxReqs = isApiReq ? 40 : 180;
+    if (!checkRateLimit(clientIp, maxReqs, 60000)) {
+      res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '60' });
+      res.end(JSON.stringify({ success: false, error: 'Rate limit exceeded. Please wait a moment.' }));
+      return;
+    }
   }
 
-  // Health check & ping endpoint (used for keep-alive monitoring and search indexing)
+  // Health check endpoint
   if (reqPath === '/healthz' || reqPath === '/health' || reqPath === '/api/health' || reqPath === '/ping') {
     res.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8',
       'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'no-cache'
+      'Cache-Control': 'no-cache',
+      'X-Robots-Tag': 'noindex, nofollow'
     });
+    if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
     res.end(JSON.stringify({
       status: 'ok',
       uptime: Math.round(process.uptime()),
@@ -1775,9 +971,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // -----------------------------------------------------------
-  // API: DIRECT APK DOWNLOAD ROUTE WITH ATTACHMENT HEADERS
-  // -----------------------------------------------------------
+  // Direct APK Download Route
   if (reqPath === '/download-apk' || reqPath === '/api/download-apk' || reqPath === '/YT_Download.apk' || reqPath === '/app-debug.apk') {
     const candidatePaths = [
       path.join(__dirname, '.build-outputs', 'app-debug.apk'),
@@ -1785,10 +979,13 @@ const server = http.createServer(async (req, res) => {
       path.join(PUBLIC_DIR, 'YT_Download.apk')
     ];
 
-    let apkPath = candidatePaths.find(p => fs.existsSync(p));
-
+    const apkPath = candidatePaths.find(p => fs.existsSync(p));
     if (!apkPath) {
-      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+      res.writeHead(404, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Access-Control-Allow-Origin': '*',
+        'X-Robots-Tag': 'noindex, nofollow'
+      });
       res.end('APK file is currently being built or was not found. Please try again in a moment.');
       return;
     }
@@ -1799,6 +996,7 @@ const server = http.createServer(async (req, res) => {
       'Content-Length': stat.size,
       'Content-Disposition': 'attachment; filename="YT_Download.apk"',
       'X-Content-Type-Options': 'nosniff',
+      'X-Robots-Tag': 'noindex, nofollow',
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0',
@@ -1824,96 +1022,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // -----------------------------------------------------------
-  // API: RECENT GOOGLE NEWS (UPDATED DAILY AUTOMATICALLY)
-  // -----------------------------------------------------------
-  if (reqPath === '/api/news') {
-    const queryCategory = (parsedUrl.query.category || 'all').toLowerCase();
-    const forceRefresh = parsedUrl.query.refresh === '1' || parsedUrl.query.force === 'true';
-
-    try {
-      if (forceRefresh || newsState.articles.length === 0) {
-        await refreshGoogleNews(forceRefresh);
-      }
-
-      // If still empty, attempt to load from local cache file
-      if (newsState.articles.length === 0) {
-        initNewsCache();
-      }
-
-      let filteredArticles = newsState.articles;
-      if (queryCategory && queryCategory !== 'all') {
-        filteredArticles = newsState.articles.filter(a => a.category === queryCategory);
-      }
-
-      // Recompute timeAgo dynamically relative to current request time and guarantee imageUrl
-      const articlesWithDynamicTime = filteredArticles.map(a => {
-        let favicon = a.sourceFavicon;
-        if (!favicon && a.sourceUrl) {
-          try {
-            const host = new URL(a.sourceUrl).hostname.replace(/^www\./, '');
-            favicon = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
-          } catch (e) {
-            favicon = 'https://www.google.com/s2/favicons?domain=news.google.com&sz=64';
-          }
-        }
-        return {
-          ...a,
-          imageUrl: a.imageUrl || getRelatedNewsImage(a.title, a.category),
-          sourceFavicon: favicon || 'https://www.google.com/s2/favicons?domain=news.google.com&sz=64',
-          snippet: cleanGoogleNewsSnippet(a.snippet, a.title),
-          timeAgo: formatRelativeTime(new Date(a.pubDate))
-        };
-      });
-
-      const nextUpdateDate = newsState.lastUpdated
-        ? new Date(new Date(newsState.lastUpdated).getTime() + 20 * 60 * 1000)
-        : null;
-
-      res.writeHead(200, {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=60'
-      });
-      res.end(JSON.stringify({
-        success: true,
-        source: 'Google News',
-        updateFrequency: 'Every 20 minutes (Automatic)',
-        refreshIntervalMinutes: 20,
-        refreshIntervalSeconds: 1200,
-        lastUpdated: newsState.lastUpdated || new Date().toISOString(),
-        nextScheduledUpdate: nextUpdateDate ? nextUpdateDate.toISOString() : null,
-        totalArticles: articlesWithDynamicTime.length,
-        selectedCategory: queryCategory,
-        categories: newsState.categories,
-        articles: articlesWithDynamicTime
-      }));
-    } catch (newsErr) {
-      console.error('[News API Error]', newsErr.message);
-      if (newsState.articles.length === 0) {
-        initNewsCache();
-      }
-      res.writeHead(200, {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Access-Control-Allow-Origin': '*'
-      });
-      res.end(JSON.stringify({
-        success: true,
-        source: 'Google News',
-        updateFrequency: 'Daily (Automatic)',
-        lastUpdated: newsState.lastUpdated || new Date().toISOString(),
-        totalArticles: newsState.articles.length,
-        selectedCategory: queryCategory,
-        categories: newsState.categories,
-        articles: newsState.articles
-      }));
-    }
-    return;
-  }
-
-  // -----------------------------------------------------------
-  // API: ANALYZE VIDEO
-  // -----------------------------------------------------------
+  // API: Analyze Video
   if (reqPath === '/api/analyze') {
     const rawVideoUrl = parsedUrl.query.url;
     const videoUrl = sanitizeAndValidateUrl(rawVideoUrl);
@@ -1922,21 +1031,26 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ success: false, error: 'Invalid or unsupported URL parameter' }));
       return;
     }
+    if (isUnsupportedPlatformUrl(videoUrl)) {
+      res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({
+        success: false,
+        error: 'Instagram and Facebook video downloading are not supported. Please paste a YouTube, Shorts, TikTok, or direct video link.'
+      }));
+      return;
+    }
+
+    const availableQualities = [
+      { quality: '1080', label: '1080p (Full HD)', type: 'video', ext: 'mp4', badge: '1080p Full HD' },
+      { quality: '720', label: '720p (HD Standard)', type: 'video', ext: 'mp4', badge: '720p HD' },
+      { quality: '480', label: '480p (Standard)', type: 'video', ext: 'mp4', badge: '480p SD' },
+      { quality: '360', label: '360p (Fast / Data Saver)', type: 'video', ext: 'mp4', badge: '360p Fast' },
+      { quality: '320', label: 'MP3 Audio (320 kbps Studio)', type: 'audio', ext: 'mp3', badge: '320kbps MP3' },
+      { quality: '128', label: 'MP3 Audio (128 kbps Standard)', type: 'audio', ext: 'mp3', badge: '128kbps MP3' }
+    ];
 
     try {
       const { info, normalizedUrl } = await fetchVideoInfo(videoUrl);
-      const isPhoto = info.type === 'photo' || !!info.isPhoto;
-
-      const availableQualities = isPhoto ? [
-        { quality: '1080', label: 'Original Resolution (Full HD) JPG', type: 'photo', ext: 'jpg', badge: 'Original HD Photo' }
-      ] : [
-        { quality: '1080', label: '1080p (Full HD)', type: 'video', ext: 'mp4', badge: '1080p Full HD' },
-        { quality: '720', label: '720p (HD Standard)', type: 'video', ext: 'mp4', badge: '720p HD' },
-        { quality: '480', label: '480p (Standard)', type: 'video', ext: 'mp4', badge: '480p SD' },
-        { quality: '360', label: '360p (Fast / Data Saver)', type: 'video', ext: 'mp4', badge: '360p Fast' },
-        { quality: '320', label: 'MP3 Audio (320 kbps Studio)', type: 'audio', ext: 'mp3', badge: '320kbps MP3' },
-        { quality: '128', label: 'MP3 Audio (128 kbps Standard)', type: 'audio', ext: 'mp3', badge: '128kbps MP3' }
-      ];
 
       res.writeHead(200, {
         'Content-Type': 'application/json',
@@ -1954,14 +1068,11 @@ const server = http.createServer(async (req, res) => {
           channel: info.author || info.uploader || (info.isSocial ? info.platform : 'YouTube Creator'),
           formats: availableQualities,
           platform: info.platform || 'YouTube',
-          type: isPhoto ? 'photo' : (info.type || 'video'),
-          isPhoto: isPhoto,
-          photos: info.photos || [],
+          type: 'video',
           normalizedUrl
         }
       }));
     } catch (err) {
-      console.warn('Analyze warning, falling back to universal metadata:', err.message);
       let hostname = 'Web';
       let cleanTitle = 'Media Video';
       try {
@@ -1970,15 +1081,6 @@ const server = http.createServer(async (req, res) => {
         const lastPart = u.pathname.split('/').filter(Boolean).pop() || '';
         if (lastPart) cleanTitle = decodeURIComponent(lastPart).replace(/[^a-zA-Z0-9._-]/g, ' ').trim();
       } catch (e) {}
-
-      const universalQualities = [
-        { quality: '1080', label: '1080p (Full HD)', type: 'video', ext: 'mp4', badge: '1080p Full HD' },
-        { quality: '720', label: '720p (HD Standard)', type: 'video', ext: 'mp4', badge: '720p HD' },
-        { quality: '480', label: '480p (Standard)', type: 'video', ext: 'mp4', badge: '480p SD' },
-        { quality: '360', label: '360p (Fast / Data Saver)', type: 'video', ext: 'mp4', badge: '360p Fast' },
-        { quality: '320', label: 'MP3 Audio (320 kbps Studio)', type: 'audio', ext: 'mp3', badge: '320kbps MP3' },
-        { quality: '128', label: 'MP3 Audio (128 kbps Standard)', type: 'audio', ext: 'mp3', badge: '128kbps MP3' }
-      ];
 
       res.writeHead(200, {
         'Content-Type': 'application/json',
@@ -1989,27 +1091,22 @@ const server = http.createServer(async (req, res) => {
         success: true,
         video: {
           id: `media_${Date.now()}`,
-          title: cleanTitle || 'Any Platform Video',
-          thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
+          title: cleanTitle || 'Online Video',
+          thumbnail: '',
           duration: 60,
           durationLabel: '01:00',
           channel: hostname,
-          formats: universalQualities,
-          platform: hostname.includes('youtube') ? 'YouTube' : (hostname.includes('tiktok') ? 'TikTok' : (hostname.includes('instagram') ? 'Instagram' : hostname)),
+          formats: availableQualities,
+          platform: hostname.includes('youtube') ? 'YouTube' : (hostname.includes('tiktok') ? 'TikTok' : hostname),
           type: 'video',
-          isPhoto: false,
-          photos: [],
-          normalizedUrl: videoUrl,
-          downloadAnyways: true
+          normalizedUrl: videoUrl
         }
       }));
     }
     return;
   }
 
-  // -----------------------------------------------------------
-  // API: GENERATE DOWNLOAD LINK / RESOLVE STREAM (ULTRA-FAST)
-  // -----------------------------------------------------------
+  // API: Generate Download Link / Resolve Stream
   if (reqPath === '/api/download' || reqPath === '/api/resolve') {
     const rawVideoUrl = parsedUrl.query.url;
     const videoUrl = sanitizeAndValidateUrl(rawVideoUrl);
@@ -2021,11 +1118,18 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ success: false, error: 'Invalid or unsupported URL parameter' }));
       return;
     }
+    if (isUnsupportedPlatformUrl(videoUrl)) {
+      res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({
+        success: false,
+        error: 'Instagram and Facebook video downloading are not supported. Please paste a YouTube, Shorts, TikTok, or direct video link.'
+      }));
+      return;
+    }
 
     try {
       const { info, cdn } = await fetchVideoInfo(videoUrl);
       const downloadData = await requestDownloadLink(cdn, info, quality, type);
-
       const streamProxyUrl = `/api/proxy?url=${encodeURIComponent(downloadData.downloadUrl)}&filename=${encodeURIComponent(downloadData.filename)}&type=${type}`;
 
       res.writeHead(200, {
@@ -2046,24 +1150,22 @@ const server = http.createServer(async (req, res) => {
       });
       res.end(JSON.stringify({
         success: false,
-        error: 'Unable to extract a downloadable video stream for this link. The video may be private, age-restricted, or protected. Please ensure the link is public or try another video or quality.'
+        error: 'Unable to extract a downloadable video stream for this link. Please ensure the link is public or try another quality.'
       }));
     }
     return;
   }
 
-  // -----------------------------------------------------------
-  // API: 1-CLICK INSTANT FAST DOWNLOAD (DIRECT ATTACHMENT)
-  // -----------------------------------------------------------
+  // API: 1-Click Instant Fast Download
   if (reqPath === '/api/fast-download') {
     const rawVideoUrl = parsedUrl.query.url;
     const videoUrl = sanitizeAndValidateUrl(rawVideoUrl);
     const quality = parsedUrl.query.quality || '720';
     const type = parsedUrl.query.type || 'video';
 
-    if (!videoUrl) {
+    if (!videoUrl || isUnsupportedPlatformUrl(videoUrl)) {
       res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
-      res.end('Invalid or unsupported URL parameter');
+      res.end('Unsupported or invalid video URL');
       return;
     }
 
@@ -2086,19 +1188,16 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // -----------------------------------------------------------
-  // API: STREAM PROXY WITH ATTACHMENT DISPOSITION
-  // -----------------------------------------------------------
+  // API: Stream Proxy with Attachment Disposition
   if (reqPath === '/api/proxy' || reqPath === '/api/stream') {
     const rawTargetUrl = parsedUrl.query.url;
     const targetUrl = sanitizeAndValidateUrl(rawTargetUrl);
     const rawFilename = parsedUrl.query.filename || 'download.mp4';
-    // Strict filename sanitization against CRLF injection and path traversal
     const safeFilename = String(rawFilename).replace(/[\r\n"\\/]/g, '').trim().slice(0, 200) || 'download.mp4';
     const type = parsedUrl.query.type || 'video';
     const contentType = type === 'audio' ? 'audio/mpeg' : 'video/mp4';
 
-    if (!targetUrl || targetUrl.includes('youtube.com/watch') || targetUrl.includes('youtube.com/shorts') || targetUrl.includes('youtu.be/')) {
+    if (!targetUrl || isUnsupportedPlatformUrl(targetUrl) || targetUrl.includes('youtube.com/watch') || targetUrl.includes('youtube.com/shorts') || targetUrl.includes('youtu.be/')) {
       res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
       res.end('Invalid or prohibited target media URL');
       return;
@@ -2106,9 +1205,6 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const isTiktok = targetUrl.includes('tiktok') || targetUrl.includes('tikwm') || targetUrl.includes('nowmvideo') || targetUrl.includes('tikmate');
-      const isSnap = targetUrl.includes('snapcdn') || targetUrl.includes('saveig.to');
-      const isInstagram = targetUrl.includes('instagram.com') || targetUrl.includes('cdninstagram.com');
-      const isFacebook = targetUrl.includes('facebook.com') || targetUrl.includes('fbcdn.net');
       const reqHeaders = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
         'Accept': '*/*'
@@ -2120,12 +1216,6 @@ const server = http.createServer(async (req, res) => {
         reqHeaders['Referer'] = 'https://www.tiktok.com/';
       } else if (targetUrl.includes('savetube')) {
         reqHeaders['Referer'] = 'https://save-tube.com/';
-      } else if (isSnap) {
-        reqHeaders['Referer'] = 'https://saveig.to/';
-      } else if (isInstagram) {
-        reqHeaders['Referer'] = 'https://www.instagram.com/';
-      } else if (isFacebook) {
-        reqHeaders['Referer'] = 'https://www.facebook.com/';
       }
 
       const proxyRes = await fetch(targetUrl, {
@@ -2150,11 +1240,6 @@ const server = http.createServer(async (req, res) => {
         finalContentType = upstreamContentType.includes('audio/') ? upstreamContentType : 'audio/mpeg';
         if (!/\.(mp3|m4a|aac|wav)$/i.test(finalFilename)) {
           finalFilename = finalFilename.replace(/\.[^/.]+$/, '') + '.mp3';
-        }
-      } else if (type === 'photo') {
-        finalContentType = upstreamContentType.includes('image/') ? upstreamContentType : 'image/jpeg';
-        if (!/\.(jpg|jpeg|png|webp)$/i.test(finalFilename)) {
-          finalFilename = finalFilename.replace(/\.[^/.]+$/, '') + '.jpg';
         }
       }
 
@@ -2184,7 +1269,7 @@ const server = http.createServer(async (req, res) => {
     } catch (err) {
       console.error('Proxy stream error:', err.message);
       if (!res.headersSent) {
-        if (targetUrl && (targetUrl.includes('googlevideo.com') || targetUrl.includes('savetube') || targetUrl.includes('tiktokcdn') || targetUrl.includes('fbcdn.net'))) {
+        if (targetUrl && (targetUrl.includes('googlevideo.com') || targetUrl.includes('savetube') || targetUrl.includes('tiktokcdn'))) {
           res.writeHead(302, { 'Location': targetUrl });
           res.end();
         } else {
@@ -2196,9 +1281,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // -----------------------------------------------------------
-  // STATIC FILES HANDLING & STRICT 404 (PREVENT SOFT 404S)
-  // -----------------------------------------------------------
+  // Static Files Handling & Strict 404
   let filePath = path.join(PUBLIC_DIR, reqPath);
   if (!fs.existsSync(filePath)) {
     filePath = path.join(__dirname, reqPath);
@@ -2213,7 +1296,6 @@ const server = http.createServer(async (req, res) => {
 
   fs.stat(resolvedPath, (err, stats) => {
     if (err || !stats.isFile()) {
-      // Return true HTTP 404 to avoid Google Soft 404 indexing penalties
       res.writeHead(404, {
         'Content-Type': 'text/html; charset=utf-8',
         'X-Robots-Tag': 'noindex, nofollow'
@@ -2227,28 +1309,47 @@ const server = http.createServer(async (req, res) => {
     const isHtml = ext === '.html';
     const isXml = ext === '.xml';
     const isTxt = ext === '.txt';
+    const etag = `W/"${stats.size.toString(16)}-${Math.floor(stats.mtimeMs).toString(16)}"`;
 
     const headers = {
       'Content-Type': contentType,
+      'Content-Length': stats.size,
+      'Last-Modified': stats.mtime.toUTCString(),
+      'ETag': etag,
       'X-Content-Type-Options': 'nosniff'
     };
 
     if (isHtml) {
-      headers['Cache-Control'] = 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800';
+      headers['Content-Language'] = 'en';
+      headers['X-Robots-Tag'] = 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
+      headers['Cache-Control'] = 'public, max-age=600, s-maxage=3600, stale-while-revalidate=86400';
       headers['X-Frame-Options'] = 'SAMEORIGIN';
       headers['Referrer-Policy'] = 'strict-origin-when-cross-origin';
     } else if (isXml || isTxt) {
-      headers['Cache-Control'] = 'public, max-age=3600';
+      headers['Cache-Control'] = 'public, max-age=1800';
     } else if (ext === '.apk') {
+      headers['X-Robots-Tag'] = 'noindex, nofollow';
       headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
     } else {
       headers['Cache-Control'] = 'public, max-age=86400';
+    }
+
+    if (req.headers['if-none-match'] === etag) {
+      res.writeHead(304, headers);
+      res.end();
+      return;
     }
 
     const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     if (urlObj.searchParams.get('download') === '1' || ext === '.apk') {
       const downloadFilename = urlObj.searchParams.get('filename') || path.basename(resolvedPath);
       headers['Content-Disposition'] = `attachment; filename="${downloadFilename}"`;
+    }
+
+    if (req.method === 'HEAD') {
+      res.writeHead(200, headers);
+      res.end();
+      return;
     }
 
     res.writeHead(200, headers);
@@ -2272,7 +1373,7 @@ server.on('error', (err) => {
         server.close();
       } catch (e) {}
       server.listen(PORT, '0.0.0.0', () => {
-        console.log(`YT Download & Google News server running live on port ${PORT}`);
+        console.log(`YT Download server running live on port ${PORT}`);
       });
     }, 1500);
   } else {
@@ -2281,28 +1382,19 @@ server.on('error', (err) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`YT Download & Google News server running live on port ${PORT}`);
+  console.log(`YT Download server running live on port ${PORT}`);
 });
 
-// -------------------------------------------------------------
-// RENDER FREE TIER KEEP-ALIVE (Prevents Instance Cold Sleep)
-// -------------------------------------------------------------
 function startRenderKeepAlive() {
   const RENDER_DOMAIN = process.env.RENDER_EXTERNAL_URL || 'https://ytdownload-ti50.onrender.com';
-  // Ping every 10 minutes (Render free tier goes to sleep after 15 minutes of inactivity)
   const KEEP_ALIVE_INTERVAL = 10 * 60 * 1000;
   setInterval(() => {
     try {
       const pingUrl = `${RENDER_DOMAIN}/api/health`;
       const client = pingUrl.startsWith('https') ? https : http;
-      client.get(pingUrl, { timeout: 10000 }, (res) => {
-        // Render ping received successfully
-      }).on('error', () => {
-        // Silently catch background ping network retries
-      });
+      client.get(pingUrl, { timeout: 10000 }, () => {}).on('error', () => {});
     } catch (e) {}
   }, KEEP_ALIVE_INTERVAL);
 }
 
 startRenderKeepAlive();
-

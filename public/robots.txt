@@ -1,5 +1,8 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /download-apk
+Disallow: /YT_Download.apk
+Disallow: /app-debug.apk
 
 Sitemap: https://ytdownload-ti50.onrender.com/sitemap.xml

@@ -1,7 +1,7 @@
 {
   "name": "yt-download-web",
-  "version": "1.0.0",
-  "description": "Fast online video downloader for YT video download, TikTok video download, and Instagram video download.",
+  "version": "1.1.0",
+  "description": "Fast, lightweight online video downloader for YouTube (HD 1080p & Shorts), TikTok (No Watermark), and MP3 audio.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -10,27 +10,19 @@
   },
   "keywords": [
     "yt video download",
-    "TikTok video download",
-    "instagram video download",
-    "video downloader",
-    "reels downloader",
-    "shorts downloader"
+    "youtube downloader",
+    "tiktok video download",
+    "shorts downloader",
+    "mp3 converter"
   ],
-  "author": "AI Studio",
+  "author": "YT Download",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
     "@distube/ytdl-core": "^4.16.12",
-    "@jerrycoder/instagram-api": "^2.5.9",
     "@vreden/youtube_scraper": "^1.2.9",
-    "ab-downloader": "^2.0.0",
-    "axios": "^1.7.9",
-    "btch-downloader": "^6.4.0",
-    "cakkatrok-instagram-downloader": "^2.0.2",
-    "instagram-url-direct": "^2.0.7",
-    "snapsave-media-downloader": "^2.5.1",
-    "snapsaver-downloader": "^1.0.3"
+    "axios": "^1.7.9"
   }
 }

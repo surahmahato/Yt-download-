@@ -221,9 +221,6 @@ class VideoDownloadManager(private val context: Context) {
                 sanitized.endsWith(".webm", ignoreCase = true) ||
                 sanitized.endsWith(".mp3", ignoreCase = true)
 
-        val isInstaPhotoUrl = (platform == "Instagram" || sanitized.contains("instagram.com")) &&
-                (sanitized.contains("/p/") && !sanitized.contains("/reel/"))
-
         var resolvedTitle: String? = null
         var resolvedThumb: String? = null
 
@@ -282,9 +279,7 @@ class VideoDownloadManager(private val context: Context) {
             }
             platform == "YouTube" -> "YouTube Video"
             platform == "TikTok" -> "TikTok Video (No Watermark)"
-            platform == "Instagram" -> if (isInstaPhotoUrl) "Instagram Photo (Original HD)" else "Instagram Reels Video (HD)"
             platform == "Twitter/X" -> "Twitter Video Highlight"
-            platform == "Facebook" -> "Shared Video"
             platform == "Reddit" -> "Reddit Video Clip"
             platform == "Vimeo" -> "Vimeo High-Res Video"
             else -> {
@@ -293,43 +288,27 @@ class VideoDownloadManager(private val context: Context) {
             }
         }
 
-        val formats = if (isInstaPhotoUrl) {
-            listOf(
-                VideoFormatOption(
-                    id = "photo-1080",
-                    resolution = "1080",
-                    label = "Original Resolution (Full HD) JPG",
-                    approxSizeMb = "2.4 MB",
-                    extension = "jpg",
-                    mimeType = "image/jpeg",
-                    quality = "1080",
-                    type = "photo",
-                    badge = "Original HD Photo"
-                )
-            )
-        } else {
-            listOf(
-                VideoFormatOption("1080p", "1080p", "1080p (Full HD)", "18.4 MB", "mp4", "video/mp4", "1080", "video", "1080p Full HD"),
-                VideoFormatOption("720p", "720p", "720p (HD Standard)", "9.6 MB", "mp4", "video/mp4", "720", "video", "720p HD"),
-                VideoFormatOption("480p", "480p", "480p (Standard)", "4.8 MB", "mp4", "video/mp4", "480", "video", "480p SD"),
-                VideoFormatOption("360p", "360p", "360p (Fast / Data Saver)", "2.9 MB", "mp4", "video/mp4", "360", "video", "360p Fast"),
-                VideoFormatOption("mp3-320", "Audio", "MP3 Audio (320 kbps Studio)", "4.2 MB", "mp3", "audio/mpeg", "320", "audio", "320kbps MP3"),
-                VideoFormatOption("mp3-128", "Audio", "MP3 Audio (128 kbps Standard)", "2.4 MB", "mp3", "audio/mpeg", "128", "audio", "128kbps MP3")
-            )
-        }
+        val formats = listOf(
+            VideoFormatOption("1080p", "1080p", "1080p (Full HD)", "18.4 MB", "mp4", "video/mp4", "1080", "video", "1080p Full HD"),
+            VideoFormatOption("720p", "720p", "720p (HD Standard)", "9.6 MB", "mp4", "video/mp4", "720", "video", "720p HD"),
+            VideoFormatOption("480p", "480p", "480p (Standard)", "4.8 MB", "mp4", "video/mp4", "480", "video", "480p SD"),
+            VideoFormatOption("360p", "360p", "360p (Fast / Data Saver)", "2.9 MB", "mp4", "video/mp4", "360", "video", "360p Fast"),
+            VideoFormatOption("mp3-320", "Audio", "MP3 Audio (320 kbps Studio)", "4.2 MB", "mp3", "audio/mpeg", "320", "audio", "320kbps MP3"),
+            VideoFormatOption("mp3-128", "Audio", "MP3 Audio (128 kbps Standard)", "2.4 MB", "mp3", "audio/mpeg", "128", "audio", "128kbps MP3")
+        )
 
         val streamUrl = if (isDirectMp4) sanitized else ""
 
         return AnalyzedVideoMetadata(
             title = title,
             platform = platform,
-            durationText = if (isInstaPhotoUrl) "HD Photo" else "HD Quality",
+            durationText = "HD Quality",
             originalUrl = sanitized,
             downloadStreamUrl = streamUrl,
             formats = formats,
             thumbnailUrl = resolvedThumb,
-            isPhoto = isInstaPhotoUrl,
-            type = if (isInstaPhotoUrl) "photo" else "video"
+            isPhoto = false,
+            type = "video"
         )
     }
 
@@ -392,118 +371,7 @@ class VideoDownloadManager(private val context: Context) {
             } catch (_: Exception) {}
         }
 
-        // Tier 2: Dedicated Instagram Resolution with Strict Stream Discrimination
-        if (platform == "Instagram" || originalUrl.contains("instagram.com") || originalUrl.contains("instagr.am")) {
-            try {
-                val homeReq = Request.Builder()
-                    .url("https://saveig.to/en")
-                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36")
-                    .build()
-                val homeResp = httpClient.newCall(homeReq).execute()
-                if (homeResp.isSuccessful) {
-                    val homeHtml = homeResp.body?.string() ?: ""
-                    val expMatch = Regex("""k_exp="([^"]+)"""").find(homeHtml)?.groupValues?.getOrNull(1)
-                    val tokenMatch = Regex("""k_token="([^"]+)"""").find(homeHtml)?.groupValues?.getOrNull(1)
-
-                    if (!expMatch.isNullOrBlank() && !tokenMatch.isNullOrBlank()) {
-                        val form = FormBody.Builder()
-                            .add("k_exp", expMatch)
-                            .add("k_token", tokenMatch)
-                            .add("q", originalUrl)
-                            .add("t", if (typeVal == "photo") "media" else "reels")
-                            .add("lang", "en")
-                            .add("v", "v2")
-                            .build()
-
-                        val searchReq = Request.Builder()
-                            .url("https://saveig.to/api/ajaxSearch")
-                            .post(form)
-                            .header("Origin", "https://saveig.to")
-                            .header("Referer", "https://saveig.to/en")
-                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-                            .header("X-Requested-With", "XMLHttpRequest")
-                            .build()
-                        val searchResp = httpClient.newCall(searchReq).execute()
-                        if (searchResp.isSuccessful) {
-                            val dataJson = JSONObject(searchResp.body?.string() ?: "{}")
-                            val rawHtml = dataJson.optString("data")
-                            if (rawHtml.isNotBlank()) {
-                                // Extract anchor tags
-                                val anchorRegex = Regex("""<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>""", RegexOption.IGNORE_CASE)
-                                val matches = anchorRegex.findAll(rawHtml).toList()
-
-                                val videoCandidates = mutableListOf<String>()
-                                val photoCandidates = mutableListOf<String>()
-
-                                for (m in matches) {
-                                    val href = m.groupValues[1]
-                                    val text = m.groupValues[2].replace(Regex("<[^>]+>"), "").trim().lowercase()
-
-                                    if (!href.contains("snapcdn") && !href.contains("saveig") &&
-                                        !href.contains("instagram.com") && !href.contains("fbcdn.net")) {
-                                        continue
-                                    }
-
-                                    // Decode token payload if available
-                                    var innerFilename = ""
-                                    var innerDirectUrl = ""
-                                    val tokenParam = Regex("""[?&]token=([^&]+)""").find(href)?.groupValues?.getOrNull(1)
-                                    if (!tokenParam.isNullOrBlank()) {
-                                        try {
-                                            val parts = tokenParam.split(".")
-                                            if (parts.size > 1) {
-                                                val decoded = String(Base64.decode(parts[1], Base64.DEFAULT))
-                                                val pJson = JSONObject(decoded)
-                                                innerFilename = pJson.optString("filename")
-                                                innerDirectUrl = pJson.optString("url")
-                                            }
-                                        } catch (_: Exception) {}
-                                    }
-
-                                    val targetCandidate = if (innerDirectUrl.isNotBlank()) innerDirectUrl else href
-                                    val isVideo = innerFilename.endsWith(".mp4", true) ||
-                                            targetCandidate.contains(".mp4") ||
-                                            text.contains("video") ||
-                                            text.contains("download mp4") ||
-                                            text.contains("reel")
-                                    val isPhoto = innerFilename.endsWith(".jpg", true) ||
-                                            innerFilename.endsWith(".png", true) ||
-                                            text.contains("photo") ||
-                                            text.contains("image")
-
-                                    if (isVideo) {
-                                        videoCandidates.add(targetCandidate)
-                                    } else if (isPhoto) {
-                                        photoCandidates.add(targetCandidate)
-                                    } else {
-                                        if (href.contains("video")) videoCandidates.add(targetCandidate)
-                                        else photoCandidates.add(targetCandidate)
-                                    }
-                                }
-
-                                if (typeVal == "video" || typeVal == "audio") {
-                                    // STRICT STREAM DISCRIMINATION: only accept video candidates, never jpg cover images
-                                    val picked = videoCandidates.firstOrNull { it.contains(".mp4") }
-                                        ?: videoCandidates.firstOrNull()
-                                    if (!picked.isNullOrBlank()) {
-                                        return Pair(picked, "Instagram Video")
-                                    }
-                                } else if (typeVal == "photo") {
-                                    val picked = photoCandidates.firstOrNull()
-                                    if (!picked.isNullOrBlank()) {
-                                        return Pair(picked, "Instagram Photo")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-
-        // Tier 3: TikTok resolution (TikMate API & TikWM)
+        // Tier 2: TikTok resolution (TikMate API & TikWM)
         if (platform == "TikTok" || originalUrl.contains("tiktok.com")) {
             try {
                 val formBody = FormBody.Builder().add("url", originalUrl).build()
@@ -758,12 +626,8 @@ class VideoDownloadManager(private val context: Context) {
                 .header("Accept", "*/*")
                 .header("Accept-Language", "en-US,en;q=0.9")
 
-            if (targetStreamUrl.contains("snapcdn") || targetStreamUrl.contains("saveig")) {
-                reqBuilder.header("Referer", "https://saveig.to/")
-            } else if (targetStreamUrl.contains("tiktok")) {
+            if (targetStreamUrl.contains("tiktok")) {
                 reqBuilder.header("Referer", "https://www.tiktok.com/")
-            } else if (targetStreamUrl.contains("instagram")) {
-                reqBuilder.header("Referer", "https://www.instagram.com/")
             } else if (targetStreamUrl.contains("savetube")) {
                 reqBuilder.header("Referer", "https://save-tube.com/")
             }

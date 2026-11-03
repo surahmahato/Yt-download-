@@ -160,7 +160,7 @@ fun DownloaderScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Universal Guarantee: Download videos from ANY platform without rejection.",
+                    text = "Fast HD 1080p Video & 320kbps MP3 — Direct to Phone Gallery.",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onTertiaryContainer
@@ -168,7 +168,7 @@ fun DownloaderScreen(
             }
         }
 
-        // Colorful Supported Platforms Bar (YouTube, TikTok, Instagram, Facebook, Twitter, Reddit, Any Platform)
+        // Supported Platforms Bar (YouTube, Shorts, TikTok, Twitter/X, Direct MP4)
         FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
@@ -208,35 +208,19 @@ fun DownloaderScreen(
                 }
             }
 
-            // Instagram
+            // YouTube Shorts
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = Color(0xFFFCE7F3),
+                color = Color(0xFFFEF3C7),
                 modifier = Modifier.padding(horizontal = 2.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFFDB2777)))
+                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFFD97706)))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = "Instagram", style = MaterialTheme.typography.labelSmall, color = Color(0xFFDB2777), fontWeight = FontWeight.Bold)
-                }
-            }
-
-            // Facebook
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = Color(0xFFDBEAFE),
-                modifier = Modifier.padding(horizontal = 2.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF2563EB)))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = "Facebook", style = MaterialTheme.typography.labelSmall, color = Color(0xFF1D4ED8), fontWeight = FontWeight.Bold)
+                    Text(text = "YT Shorts", style = MaterialTheme.typography.labelSmall, color = Color(0xFFB45309), fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -268,7 +252,7 @@ fun DownloaderScreen(
                 ) {
                     Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color(0xFF10B981)))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = "+ Any Website", style = MaterialTheme.typography.labelSmall, color = Color(0xFF047857), fontWeight = FontWeight.Bold)
+                    Text(text = "Direct MP4", style = MaterialTheme.typography.labelSmall, color = Color(0xFF047857), fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -290,7 +274,7 @@ fun DownloaderScreen(
                     onValueChange = { viewModel.onUrlChanged(it) },
                     placeholder = {
                         Text(
-                            text = "Paste video link from any platform or website...",
+                            text = "Paste YouTube, Shorts, TikTok, or direct MP4 link...",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -511,7 +495,7 @@ fun DownloaderScreen(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             val platforms = listOf(
-                "YouTube", "TikTok", "Instagram Reels", "Twitter / X", "Facebook", "Direct MP4"
+                "YouTube", "YouTube Shorts", "TikTok", "Twitter / X", "Direct MP4"
             )
             platforms.forEach { name ->
                 Surface(

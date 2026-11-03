@@ -241,13 +241,21 @@ object CryptoManager {
                 return UrlValidationResult(false, errorReason = "Blocked private network address (Anti-SSRF Protection).")
             }
 
-            // Universal Platform Detection - Never reject any platform
+            // Block unsupported platforms (Instagram & Facebook video downloading removed)
+            if (host.contains("instagram.com") || host.contains("instagr.am") || host.contains("cdninstagram.com") ||
+                host.contains("facebook.com") || host.contains("fb.watch") || host.contains("fb.gg") || host.contains("fbcdn.net")
+            ) {
+                return UrlValidationResult(
+                    false,
+                    errorReason = "Instagram and Facebook video downloading are not supported. Please paste a YouTube, Shorts, or TikTok link."
+                )
+            }
+
+            // Supported Platform Detection
             val platform = when {
                 host.contains("youtube.com") || host.contains("youtu.be") -> "YouTube"
                 host.contains("tiktok.com") -> "TikTok"
-                host.contains("instagram.com") || host.contains("instagr.am") -> "Instagram"
                 host.contains("twitter.com") || host.contains("x.com") || host.contains("t.co") -> "Twitter/X"
-                host.contains("facebook.com") || host.contains("fb.watch") || host.contains("fb.gg") -> "Facebook"
                 host.contains("reddit.com") || host.contains("redd.it") -> "Reddit"
                 host.contains("vimeo.com") -> "Vimeo"
                 host.contains("dailymotion.com") || host.contains("dai.ly") -> "Dailymotion"
