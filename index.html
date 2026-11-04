@@ -42,7 +42,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=3">
 </head>
 <body>
 
@@ -65,12 +65,6 @@
           <svg style="width:14px;height:14px;fill:currentColor" viewBox="0 0 24 24"><path d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5 2.54 2.54 0 0 1-2.55-2.5 2.56 2.56 0 0 1 2.55-2.55c.29 0 .56.05.82.13v-3.2A5.84 5.84 0 0 0 9.86 9.6 5.74 5.74 0 0 0 4.1 15.4a5.74 5.74 0 0 0 5.76 5.8 5.77 5.77 0 0 0 5.77-5.8V9.17c1.4.99 3.09 1.58 4.9 1.63v-3.2c-1.42-.02-2.78-.65-3.93-1.78z"/></svg>
           TikTok
         </span>
-
-        <!-- Jump to Interactive 3D Website Model -->
-        <a href="#website3dModel" class="btn-3d-header" title="Explore Interactive 3D Website Model">
-          <svg style="width:16px;height:16px;fill:currentColor;" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zm0 7.3L5.2 6 12 2.7 18.8 6 12 9.3zm-1 2.4L3 7.8v8.9l8 4v-9zm2 9l8-4V7.8l-8 3.9v9z"/></svg>
-          <span>3D Model</span>
-        </a>
 
         <!-- APK Download Button -->
         <a href="/download-apk" id="headerDownloadApkBtn" class="btn-apk-header" rel="nofollow" download="YT_Download.apk" title="Download Android App APK">
@@ -333,131 +327,6 @@
       </div>
     </section>
 
-    <!-- INTERACTIVE 3D MODEL OF THIS WEBSITE -->
-    <section id="website3dModel" class="website-3d-section">
-      <h2 class="section-title">Interactive 3D Model of YT Download</h2>
-      <p class="section-subtitle">Drag to rotate 360°, explode the 3D architectural layers, or simulate a live HD stream from the browser UI down to your phone gallery</p>
-
-      <div class="model-3d-shell">
-        <div class="model-3d-toolbar">
-          <div class="toolbar-group">
-            <button type="button" class="btn-3d-ctrl cam-preset-btn active" data-rx="-24" data-ry="32">Isometric 3D</button>
-            <button type="button" class="btn-3d-ctrl cam-preset-btn" data-rx="-4" data-ry="0">Front UI</button>
-            <button type="button" class="btn-3d-ctrl cam-preset-btn" data-rx="-15" data-ry="82">Side Stack</button>
-            <button type="button" class="btn-3d-ctrl cam-preset-btn" data-rx="-72" data-ry="18">Top Blueprint</button>
-          </div>
-          <div class="toolbar-group">
-            <button type="button" id="toggleExplode3dBtn" class="btn-3d-ctrl">Explode Layers</button>
-            <button type="button" id="toggleAutoOrbitBtn" class="btn-3d-ctrl active">Auto-Orbit</button>
-            <button type="button" id="simulate3dFlowBtn" class="btn-3d-ctrl btn-3d-pulse">⚡ Simulate 3D Download</button>
-          </div>
-        </div>
-
-        <div id="scene3dViewport" class="scene-3d-viewport" aria-label="Interactive 3D Website Model">
-          <canvas id="conduit3dCanvas" class="conduit-3d-canvas"></canvas>
-
-          <div id="model3dPivot" class="model-3d-pivot">
-            <!-- Holographic Floor Plane -->
-            <div class="holo-floor-grid"></div>
-
-            <!-- Vertical Z-Axis Laser Conduit -->
-            <div class="z-conduit-beam"></div>
-
-            <!-- 3D LAYER 1: YT Download Website Browser UI -->
-            <div class="layer-3d-deck deck-browser selected-layer" data-layer="browser">
-              <div class="browser-3d-depth"></div>
-              <div class="browser-3d-card">
-                <div class="mini-browser-bar">
-                  <div class="mini-dots"><span></span><span></span><span></span></div>
-                  <div class="mini-brand">YT <em>Download</em></div>
-                  <div class="mini-url-pill">ytdownload-ti50.onrender.com</div>
-                </div>
-                <div class="mini-search-row">
-                  <div class="mini-search-box" id="mini3dUrlText">https://youtu.be/HD_1080p_Stream</div>
-                  <div class="mini-dl-btn">⚡ Fast DL</div>
-                </div>
-                <div class="mini-formats-grid">
-                  <div class="mini-fmt-chip active" data-fmt="1080p MP4">1080p Full HD</div>
-                  <div class="mini-fmt-chip" data-fmt="720p HD">720p Mobile</div>
-                  <div class="mini-fmt-chip" data-fmt="320kbps MP3">320k MP3</div>
-                </div>
-                <div class="mini-hud-strip">
-                  <div class="mini-hud-top">
-                    <span id="mini3dHudStatus">⚡ CDN Edge Stream Ready</span>
-                    <span id="mini3dHudPct">100%</span>
-                  </div>
-                  <div class="mini-hud-bar">
-                    <div id="mini3dHudFill" class="mini-hud-fill"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 3D LAYER 2: Node.js Stream & Decryption Core -->
-            <div class="layer-3d-deck deck-engine" data-layer="engine">
-              <div class="engine-3d-plate">
-                <div class="core-cube-wrap">
-                  <div class="cube-face front">NODE</div>
-                  <div class="cube-face back">HTTP</div>
-                  <div class="cube-face right">MP4</div>
-                  <div class="cube-face left">MP3</div>
-                  <div class="cube-face top">CDN</div>
-                  <div class="cube-face bottom">TLS</div>
-                </div>
-                <div class="engine-specs-col">
-                  <div class="engine-title-tag">NODE.JS STREAM ENGINE</div>
-                  <div class="engine-node-pill">⚡ YouTube &amp; TikTok No-WM</div>
-                  <div class="engine-node-pill">🛡️ Zero-Disk RAM Pipe + Anti-PHP</div>
-                  <div class="engine-node-pill">🚀 18.5 MB/s Chunked Proxy</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 3D LAYER 3: Smartphone Gallery Destination -->
-            <div class="layer-3d-deck deck-phone" data-layer="phone">
-              <div class="phone-3d-depth"></div>
-              <div class="phone-3d-chassis">
-                <div class="phone-notch"></div>
-                <div class="phone-gallery-header">
-                  <span>📱 Phone Gallery</span>
-                  <span id="mini3dPhoneBadge">✓ Indexed</span>
-                </div>
-                <div class="phone-saved-item">
-                  <span id="mini3dSavedFile1">🎬 YT_Video_1080p.mp4</span>
-                  <span style="color:#34d399;font-weight:700;">HD</span>
-                </div>
-                <div class="phone-saved-item">
-                  <span>🎵 Studio_Audio_320k.mp3</span>
-                  <span style="color:#38bdf8;font-weight:700;">MP3</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="scene-3d-hint">🖱️ Drag to Rotate 360° • Scroll to Zoom • Click Any Layer</div>
-          <div id="scene3dReadout" class="scene-3d-readout">Pitch: -24° | Yaw: 32° | Zoom: 1.00x</div>
-        </div>
-
-        <div class="model-3d-inspector">
-          <div class="inspector-card active" data-inspect="browser">
-            <div class="inspector-step">Layer 01 • Top Plane</div>
-            <h4>Lightweight Web UI</h4>
-            <p>Streamlined HTML5 &amp; CSS interface with stripped meta bloat, instant clipboard paste, and 1-click 1080p/MP3 selectors.</p>
-          </div>
-          <div class="inspector-card" data-inspect="engine">
-            <div class="inspector-step">Layer 02 • Core Cube</div>
-            <h4>Node.js Stream Engine</h4>
-            <p>Deciphers YouTube &amp; watermark-free TikTok manifests in RAM with SSRF &amp; PHP-scanner drop shields on Render.</p>
-          </div>
-          <div class="inspector-card" data-inspect="phone">
-            <div class="inspector-step">Layer 03 • Base Device</div>
-            <h4>Direct Gallery Storage</h4>
-            <p>Delivers RFC-compliant attachment streams straight into Android MediaStore &amp; iOS Photos without re-encoding loss.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <!-- Key Architectural Features Section -->
     <section class="features-section">
       <div class="container">
@@ -678,7 +547,6 @@
         </div>
 
         <div class="footer-links">
-          <a href="#website3dModel" style="font-weight:700;">3D Website Model</a>
           <a href="/download-apk" rel="nofollow" download="YT_Download.apk" id="footerDownloadApkBtn" title="Download Official Android App">Download Android APK</a>
           <a href="/about" title="About Us">About Us</a>
           <a href="/dmca" title="DMCA &amp; Copyright Policy" style="color:#dc2626;font-weight:700;">DMCA Policy</a>
@@ -788,23 +656,6 @@
     </div>
   </div>
 
-  <!-- Legal & Info Modal -->
-  <div id="infoModal" class="video-player-modal" style="display:none;" role="dialog" aria-modal="true">
-    <div class="video-modal-backdrop" id="infoModalBackdrop"></div>
-    <div class="video-modal-dialog" style="max-width: 680px; max-height: 85vh; overflow-y: auto;">
-      <div class="video-modal-header" style="position: sticky; top: 0; background: #ffffff; z-index: 10; border-bottom: 1px solid var(--border-color); padding: 16px 20px;">
-        <div class="modal-title-wrap">
-          <h3 id="infoModalTitle" style="font-size: 1.2rem; font-weight: 700; color: var(--text-main);">Information</h3>
-        </div>
-        <button type="button" id="closeInfoModalBtn" class="modal-close-btn" aria-label="Close Modal">&times;</button>
-      </div>
-      <div class="video-modal-body" id="infoModalBody" style="padding: 24px; color: var(--text-main); font-size: 0.95rem; line-height: 1.7;"></div>
-      <div class="video-modal-footer" style="position: sticky; bottom: 0; background: #f8fafc; border-top: 1px solid var(--border-color); padding: 14px 20px; display: flex; justify-content: flex-end; gap: 10px;">
-        <button type="button" id="infoModalCloseActionBtn" class="btn-secondary" style="padding: 8px 20px;">Close</button>
-      </div>
-    </div>
-  </div>
-
   <!-- In-Browser Video Player Modal -->
   <div id="videoPlayerModal" class="video-player-modal" style="display:none;">
     <div class="video-modal-backdrop" id="modalBackdrop"></div>
@@ -841,6 +692,6 @@
     </div>
   </div>
 
-  <script src="/app.js"></script>
+  <script src="/app.js?v=3"></script>
 </body>
 </html>

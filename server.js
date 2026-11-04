@@ -11,7 +11,9 @@ let vredenScraper = null;
 try {
   vredenScraper = require('@vreden/youtube_scraper');
 } catch (e) {
-  console.warn('[@vreden/youtube_scraper load warning]:', e.message);
+  if (e && e.code !== 'MODULE_NOT_FOUND') {
+    console.warn('[@vreden/youtube_scraper load warning]:', e.message);
+  }
 }
 
 const YT_DLP_BIN = fs.existsSync(path.join(__dirname, 'bin', 'yt-dlp'))
@@ -1327,6 +1329,8 @@ const server = http.createServer(async (req, res) => {
       headers['Referrer-Policy'] = 'strict-origin-when-cross-origin';
     } else if (isXml || isTxt) {
       headers['Cache-Control'] = 'public, max-age=1800';
+    } else if (ext === '.css' || ext === '.js') {
+      headers['Cache-Control'] = 'public, max-age=300, must-revalidate';
     } else if (ext === '.apk') {
       headers['X-Robots-Tag'] = 'noindex, nofollow';
       headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
